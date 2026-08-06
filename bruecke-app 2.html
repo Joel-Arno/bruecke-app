@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Brücke</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brücke">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel-a: #2B4C5C;
+    --panel-a-deep: #1E3641;
+    --panel-b: #C4622D;
+    --panel-b-deep: #9C4B21;
+    --bridge: #EDE6D6;
+    --ink: #201C16;
+    --ink-soft: #6B6355;
+    --paper: #F5F0E6;
+    --gold: #F2C14E;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: var(--ink);
+    background: var(--bridge);
+  }
+
+  .app-shell{
+    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    background: var(--bridge);
+    overflow: hidden;
+  }
+
+  /* ================= PANELS ================= */
+  .panel{
+    flex: 1 1 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 22px 20px;
+    overflow: hidden;
+  }
+
+  .panel-a{
+    background: linear-gradient(160deg, var(--panel-a) 0%, var(--panel-a-deep) 100%);
+    color: var(--paper);
+    transform: rotate(180deg);
+    justify-content: space-between;
+    padding-bottom: max(20px, env(safe-area-inset-top));
+  }
+
+  .panel-b{
+    background: linear-gradient(160deg, var(--panel-b) 0%, var(--panel-b-deep) 100%);
+    color: var(--paper);
+    justify-content: space-between;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .panel-top-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .top-spacer{ width: 32px; height: 32px; }
+
+  .lang-pill{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(245,240,230,0.14);
+    border: 1px solid rgba(245,240,230,0.35);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    padding: 8px 13px 8px 15px;
+    border-radius: 999px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .lang-pill:active{ background: rgba(245,240,230,0.24); }
+  .lang-pill .chev{ font-size: 10px; opacity: 0.8; margin-top: 1px; }
+
+  .icon-btn{
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(245,240,230,0.14);
+    border: 1px solid rgba(245,240,230,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--paper);
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .icon-btn:active{ background: rgba(245,240,230,0.28); }
+
+  .caption-area{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 16px 2px;
+    overflow-y: auto;
+  }
+
+  .caption-text{
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(20px, 5.5vw, 28px);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .caption-text.placeholder{ opacity: 0.55; font-style: italic; }
+  .caption-text.listening{ opacity: 0.9; }
+
+  .mic-row{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .mic-btn{
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px -6px rgba(180,130,20,0.55);
+    border: none;
+    flex-shrink: 0;
+    cursor: pointer;
+    position: relative;
+    transition: transform .12s ease, opacity .15s ease;
+  }
+  .mic-btn:active{ transform: scale(0.94); }
+
+  .mic-btn.disabled{ opacity: 0.35; pointer-events: none; }
+
+  .mic-btn.recording{ animation: pulse 1.3s ease-out infinite; }
+
+  @keyframes pulse{
+    0%   { box-shadow: 0 0 0 0 rgba(242,193,78,0.55); }
+    70%  { box-shadow: 0 0 0 18px rgba(242,193,78,0); }
+    100% { box-shadow: 0 0 0 0 rgba(242,193,78,0); }
+  }
+
+  .mic-icon{ width: 16px; height: 22px; position: relative; }
+  .mic-icon::before{
+    content:""; position:absolute; top:0; left:50%; transform: translateX(-50%);
+    width: 12px; height: 17px; border-radius: 6px; background: var(--ink);
+  }
+  .mic-icon::after{
+    content:""; position:absolute; bottom:-2px; left:50%; transform: translateX(-50%);
+    width: 20px; height: 8px; border: 2px solid var(--ink); border-top: none; border-radius: 0 0 10px 10px;
+  }
+
+  .mic-hint{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    max-width: 140px;
+  }
+
+  .status-row{
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-top: 10px;
+    min-height: 14px;
+  }
+
+  .bridge{
+    position: relative;
+    height: 40px;
+    background: var(--bridge);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    flex-shrink: 0;
+  }
+
+  .perf-row{
+    position: absolute; left: 0; right: 0; height: 0;
+    border-top: 2px dashed rgba(32,28,22,0.28); top: 50%;
+  }
+  .perf-row::before, .perf-row::after{
+    content: ""; position: absolute; top: -8px; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--bridge);
+    box-shadow: 0 0 0 1px rgba(32,28,22,0.06) inset;
+  }
+  .perf-row::before{ left: -8px; }
+  .perf-row::after{ right: -8px; }
+
+  .wordmark{
+    position: relative; background: var(--bridge); padding: 0 10px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-soft); z-index: 2;
+  }
+
+  /* ================= TOAST ================= */
+  .toast{
+    position: absolute;
+    top: max(20px, env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 10px 18px;
+    border-radius: 10px;
+    z-index: 400;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    text-align: center;
+    max-width: 82vw;
+  }
+  .toast.show{
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ================= COMPAT BANNER ================= */
+  .compat-banner{
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 12.5px;
+    line-height: 1.45;
+    padding: max(16px, env(safe-area-inset-top)) 42px 14px 18px;
+    z-index: 500;
+    display: none;
+  }
+  .compat-banner .x{
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    cursor: pointer;
+    font-size: 15px;
+    opacity: 0.8;
+    padding: 4px;
+  }
+
+  /* ================= BOTTOM SHEETS ================= */
+  .sheet-overlay{
+    position: absolute;
+    inset: 0;
+    background: rgba(20,16,10,0.42);
+    display: flex;
+    align-items: flex-end;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .sheet-overlay.open{ opacity: 1; pointer-events: auto; }
+
+  .sheet{
+    width: 100%;
+    background: var(--paper);
+    border-radius: 26px 26px 0 0;
+    padding: 10px 22px max(24px, env(safe-area-inset-bottom));
+    box-shadow: 0 -20px 40px rgba(0,0,0,0.25);
+    transform: translateY(16px);
+    transition: transform .2s ease;
+    max-height: 74vh;
+    overflow-y: auto;
+  }
+  .sheet-overlay.open .sheet{ transform: translateY(0); }
+
+  .sheet-handle{
+    width: 40px; height: 4px;
+    background: rgba(32,28,22,0.2);
+    border-radius: 4px;
+    margin: 8px auto 18px;
+  }
+
+  .sheet-title{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+
+  .sheet-sub{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 20px;
+  }
+
+  .setting-block{ margin-bottom: 24px; }
+  .setting-label{ font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .setting-desc{ font-size: 12.5px; color: var(--ink-soft); line-height: 1.4; margin-bottom: 12px; }
+
+  .segmented{
+    display: flex;
+    background: rgba(32,28,22,0.08);
+    border-radius: 12px;
+    padding: 3px;
+  }
+  .segmented .seg{
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 13.5px;
+    font-weight: 500;
+    border-radius: 9px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s ease, color .15s ease;
+  }
+  .segmented .seg.selected{ background: var(--panel-a); color: var(--paper); }
+
+  .toggle-row{ display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .toggle{
+    width: 46px; height: 27px;
+    border-radius: 999px;
+    background: rgba(32,28,22,0.18);
+    position: relative;
+    flex-shrink: 0;
+    transition: background .18s ease;
+  }
+  .toggle.on{ background: var(--panel-b); }
+  .toggle-knob{
+    position: absolute; top: 3px; left: 3px;
+    width: 21px; height: 21px;
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: left .18s ease;
+  }
+  .toggle.on .toggle-knob{ left: 22px; }
+
+  .sheet-note{
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    border-top: 1px dashed rgba(32,28,22,0.18);
+    padding-top: 14px;
+    margin-top: 4px;
+  }
+
+  .lang-list{ display: flex; flex-direction: column; gap: 2px; }
+  .lang-item{
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .lang-item:active{ background: rgba(32,28,22,0.06); }
+  .lang-item-name{ font-size: 15.5px; font-weight: 500; }
+  .lang-item-code{ font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-soft); margin-left: 8px; }
+  .lang-item-check{ color: var(--panel-b); font-size: 15px; opacity: 0; }
+  .lang-item.selected .lang-item-check{ opacity: 1; }
+
+</style>
+</head>
+<body>
+
+<div class="app-shell" id="appShell">
+
+  <div class="compat-banner" id="compatBanner">
+    <span id="compatBannerText"></span>
+    <span class="x" onclick="dismissBanner()">✕</span>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- PANEL A (rotiert, für die Person gegenüber) -->
+  <div class="panel panel-a" id="panelA">
+    <div class="panel-top-row">
+      <span class="lang-pill" onclick="openLangSheet('A')">
+        <span id="pillA">ES · Español</span> <span class="chev">▾</span>
+      </span>
+      <div class="top-spacer"></div>
+    </div>
+    <div class="caption-area"><div class="caption-text placeholder" id="captionA">„Hola, ¿todo bien?“</div></div>
+    <div class="mic-row">
+      <button class="mic-btn" id="micA"
+        onmousedown="micDown('A')" onmouseup="micUp('A')" onmouseleave="micCancel('A')"
+        ontouchstart="micDown('A')" ontouchend="micUp('A')"
+        onclick="micTap('A')">
+        <div class="mic-icon"></div>
+      </button>
+      <span class="mic-hint" id="hintA">Toca para hablar</span>
+    </div>
+    <div class="status-row" id="statusA">Listo</div>
+  </div>
+
+  <!-- BRIDGE -->
+  <div class="bridge">
+    <div class="perf-row"></div>
+    <div class="wordmark">Brücke · <span id="bridgeCodes">ES ⇄ DE</span></div>
+  </div>
+
+  <!-- PANEL B (für dich) -->
+  <div class="panel panel-b" id="panelB">
+    <div class="panel-top-row">
+      <span class="lang-pill" onclick="openLangSheet('B')">
+        <span id="pillB">DE · Deutsch</span> <span class="chev">▾</span>
+      </span>
+      <div class="icon-btn" onclick="toggleSettings()">⚙</div>
+    </div>
+    <div class="caption-area"><div class="caption-text placeholder" id="captionB">Tippen, um zu übersetzen …</div></div>
+    <div class="mic-row">
+      <button class="mic-btn" id="micB"
+        onmousedown="micDown('B')" onmouseup="micUp('B')" onmouseleave="micCancel('B')"
+        ontouchstart="micDown('B')" ontouchend="micUp('B')"
+        onclick="micTap('B')">
+        <div class="mic-icon"></div>
+      </button>
+      <span class="mic-hint" id="hintB">Zum Sprechen tippen</span>
+    </div>
+    <div class="status-row" id="statusB">Bereit</div>
+  </div>
+
+  <!-- SETTINGS SHEET -->
+  <div class="sheet-overlay" id="settingsOverlay" onclick="closeOnOverlay(event,'settingsOverlay')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Einstellungen</div>
+      <div class="sheet-sub">Gilt für beide Gesprächspartner</div>
+
+      <div class="setting-block">
+        <div class="setting-label">Aufnahme starten</div>
+        <div class="setting-desc">Wie der Mikrofon-Knopf bedient wird.</div>
+        <div class="segmented">
+          <div class="seg" id="segHold" onclick="setMode('hold')">Halten</div>
+          <div class="seg selected" id="segTap" onclick="setMode('tap')">Tippen</div>
+        </div>
+      </div>
+
+      <div class="setting-block" style="margin-bottom: 6px;">
+        <div class="toggle-row" onclick="toggleReadAloud()">
+          <div>
+            <div class="setting-label">Übersetzung vorlesen</div>
+            <div class="setting-desc" style="margin-bottom:0;">Liest die Übersetzung automatisch laut vor.</div>
+          </div>
+          <div class="toggle" id="readAloudToggle"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+
+      <div class="sheet-note">Benötigt Internetverbindung für Spracherkennung und Übersetzung. Übersetzung über MyMemory, Spracherkennung &amp; -ausgabe über die Sprachfunktionen deines Browsers.</div>
+    </div>
+  </div>
+
+  <!-- LANGUAGE SHEET -->
+  <div class="sheet-overlay" id="langOverlay" onclick="closeOnOverlay(event,'langOverlay')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="langSheetTitle">Sprache wählen</div>
+      <div class="sheet-sub">Für dieses Panel</div>
+      <div class="lang-list" id="langList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const LANGS = {
+    de: { name:'Deutsch', code:'DE', bcp:'de-DE', hold:'Zum Sprechen halten', holdRec:'Loslassen zum Beenden', tapStart:'Zum Sprechen tippen', tapStop:'Tippen zum Beenden', ready:'Bereit', listening:'Ich höre zu …', example:'„Hallo, wie geht’s?“' },
+    en: { name:'English', code:'EN', bcp:'en-US', hold:'Hold to talk', holdRec:'Release to stop', tapStart:'Tap to talk', tapStop:'Tap to stop', ready:'Ready', listening:'Listening …', example:'“Hello, how are you?”' },
+    es: { name:'Español', code:'ES', bcp:'es-ES', hold:'Mantén pulsado para hablar', holdRec:'Suelta para terminar', tapStart:'Toca para hablar', tapStop:'Toca para detener', ready:'Listo', listening:'Escuchando …', example:'„Hola, ¿todo bien?“' },
+    fr: { name:'Français', code:'FR', bcp:'fr-FR', hold:'Maintenir pour parler', holdRec:'Relâcher pour arrêter', tapStart:'Appuyer pour parler', tapStop:'Appuyer pour arrêter', ready:'Prêt', listening:'Écoute en cours …', example:'« Bonjour, comment ça va ? »' },
+    it: { name:'Italiano', code:'IT', bcp:'it-IT', hold:'Tieni premuto per parlare', holdRec:'Rilascia per terminare', tapStart:'Tocca per parlare', tapStop:'Tocca per fermare', ready:'Pronto', listening:'In ascolto …', example:'«Ciao, come va?»' },
+    pt: { name:'Português', code:'PT', bcp:'pt-PT', hold:'Mantenha pressionado para falar', holdRec:'Solte para terminar', tapStart:'Toque para falar', tapStop:'Toque para parar', ready:'Pronto', listening:'Ouvindo …', example:'“Olá, tudo bem?”' },
+    tr: { name:'Türkçe', code:'TR', bcp:'tr-TR', hold:'Konuşmak için basılı tutun', holdRec:'Bitirmek için bırakın', tapStart:'Konuşmak için dokunun', tapStop:'Durdurmak için dokunun', ready:'Hazır', listening:'Dinleniyor …', example:'“Merhaba, nasılsın?”' },
+    nl: { name:'Nederlands', code:'NL', bcp:'nl-NL', hold:'Ingedrukt houden om te spreken', holdRec:'Loslaten om te stoppen', tapStart:'Tik om te spreken', tapStop:'Tik om te stoppen', ready:'Klaar', listening:'Luisteren …', example:'“Hallo, hoe gaat het?”' },
+    pl: { name:'Polski', code:'PL', bcp:'pl-PL', hold:'Przytrzymaj, aby mówić', holdRec:'Puść, aby zakończyć', tapStart:'Dotknij, aby mówić', tapStop:'Dotknij, aby zatrzymać', ready:'Gotowe', listening:'Słucham …', example:'„Cześć, jak się masz?”' },
+    ru: { name:'Русский', code:'RU', bcp:'ru-RU', hold:'Удерживайте, чтобы говорить', holdRec:'Отпустите, чтобы закончить', tapStart:'Нажмите, чтобы говорить', tapStop:'Нажмите, чтобы остановить', ready:'Готово', listening:'Слушаю …', example:'«Привет, как дела?»' }
+  };
+
+  const state = {
+    panelA: { lang: 'es' },
+    panelB: { lang: 'de' },
+    settings: { mode: 'tap', readAloud: false }
+  };
+
+  let activeKey = null;
+  const recognizers = { A: null, B: null };
+  const transcripts = { A: '', B: '' };
+
+  const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const speechSupported = !!SpeechRecognitionImpl;
+
+  function el(id){ return document.getElementById(id); }
+  function otherKey(key){ return key === 'A' ? 'B' : 'A'; }
+
+  // ---------- rendering helpers ----------
+  function updatePill(key){
+    const L = LANGS[state['panel'+key].lang];
+    el('pill'+key).textContent = L.code + ' · ' + L.name;
+  }
+
+  function updateHint(key, recording){
+    const p = state['panel'+key];
+    const L = LANGS[p.lang];
+    const hint = state.settings.mode === 'hold'
+      ? (recording ? L.holdRec : L.hold)
+      : (recording ? L.tapStop : L.tapStart);
+    el('hint'+key).textContent = hint;
+  }
+
+  function setCaption(key, text, cls){
+    const c = el('caption'+key);
+    c.textContent = text;
+    c.className = 'caption-text' + (cls ? ' ' + cls : '');
+  }
+
+  function resetPanelIdle(key){
+    const L = LANGS[state['panel'+key].lang];
+    setCaption(key, L.example, 'placeholder');
+    el('status'+key).textContent = L.ready;
+    updateHint(key, false);
+  }
+
+  function render(){
+    ['A','B'].forEach(key => {
+      updatePill(key);
+      updateHint(key, false);
+    });
+    el('bridgeCodes').textContent = LANGS[state.panelA.lang].code + ' ⇄ ' + LANGS[state.panelB.lang].code;
+  }
+
+  // ---------- toast ----------
+  let toastTimer = null;
+  function showToast(msg){
+    const t = el('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ---------- compat banner ----------
+  function dismissBanner(){ el('compatBanner').style.display = 'none'; }
+
+  function checkCompat(){
+    const msgs = [];
+    if(!speechSupported) msgs.push('Dieser Browser unterstützt keine Live-Spracherkennung. Am besten Safari auf iPhone/iPad verwenden.');
+    if(!window.isSecureContext) msgs.push('Für Mikrofonzugriff muss diese Seite über HTTPS (oder localhost) aufgerufen werden — als lokale Datei geöffnet funktioniert das Mikrofon nicht.');
+    if(msgs.length){
+      el('compatBannerText').textContent = msgs.join(' ');
+      el('compatBanner').style.display = 'block';
+    }
+  }
+
+  // ---------- settings sheet ----------
+  function toggleSettings(){ el('settingsOverlay').classList.add('open'); }
+  function closeOnOverlay(e, id){ if(e.target.id === id) el(id).classList.remove('open'); }
+
+  function setMode(mode){
+    state.settings.mode = mode;
+    el('segHold').classList.toggle('selected', mode === 'hold');
+    el('segTap').classList.toggle('selected', mode === 'tap');
+    updateHint('A', activeKey === 'A');
+    updateHint('B', activeKey === 'B');
+  }
+
+  function toggleReadAloud(){
+    state.settings.readAloud = !state.settings.readAloud;
+    el('readAloudToggle').classList.toggle('on', state.settings.readAloud);
+  }
+
+  // ---------- language sheet ----------
+  function openLangSheet(key){
+    el('langSheetTitle').textContent = key === 'A' ? 'Sprache — Gegenüber' : 'Sprache — Für dich';
+    const list = el('langList');
+    list.innerHTML = '';
+    const current = state['panel'+key].lang;
+    Object.keys(LANGS).forEach(code => {
+      const L = LANGS[code];
+      const item = document.createElement('div');
+      item.className = 'lang-item' + (code === current ? ' selected' : '');
+      item.onclick = () => selectLanguage(key, code);
+      item.innerHTML =
+        '<span class="lang-item-name">' + L.name + '<span class="lang-item-code">' + L.code + '</span></span>' +
+        '<span class="lang-item-check">✓</span>';
+      list.appendChild(item);
+    });
+    el('langOverlay').classList.add('open');
+  }
+
+  function selectLanguage(key, code){
+    state['panel'+key].lang = code;
+    resetPanelIdle(key);
+    render();
+    el('langOverlay').classList.remove('open');
+  }
+
+  // ---------- translation ----------
+
+  // Common question-starter words per language — used to guess "." vs "?"
+  // when the speech recognizer doesn't supply punctuation.
+  const QUESTION_STARTERS = {
+    de: ['wer','wie','was','wo','wann','warum','wieso','weshalb','ist','sind','hast','habt','haben','kannst','könnt','könnten','möchtest','willst','wollt'],
+    en: ['who','what','when','where','why','how','is','are','do','does','did','can','could','would','will','have','has'],
+    es: ['qué','que','cómo','como','dónde','donde','cuándo','cuando','por','quién','quien','eres','estás','estas','puedes'],
+    fr: ['qui','que','quoi','où','ou','quand','pourquoi','comment','es','êtes','etes','peux','peut'],
+    it: ['chi','che','cosa','dove','quando','perché','perche','come','sei','puoi'],
+    pt: ['quem','que','o','onde','quando','porque','como','és','estás','estas','podes'],
+    tr: ['kim','ne','nerede','ne zaman','neden','niçin','nasıl'],
+    nl: ['wie','wat','waar','wanneer','waarom','hoe','ben','bent','kun','kunt'],
+    pl: ['kto','co','gdzie','kiedy','dlaczego','czemu','jak','jesteś','możesz'],
+    ru: ['кто','что','где','когда','почему','зачем','как','ты','вы']
+  };
+
+  function guessPunctuation(text, langCode){
+    const firstWord = (text.trim().split(/\s+/)[0] || '').toLowerCase();
+    const starters = QUESTION_STARTERS[langCode] || [];
+    return starters.includes(firstWord) ? '?' : '.';
+  }
+
+  // Cleans up raw speech-recognition text before sending it off for
+  // translation — capitalization + terminal punctuation noticeably
+  // improve match quality against MyMemory's translation-memory database.
+  function normalizeForTranslation(text, langCode){
+    let t = text.trim().replace(/\s+/g, ' ');
+    if(!t) return t;
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+    if(!/[.!?…]$/.test(t)) t += guessPunctuation(t, langCode);
+    return t;
+  }
+
+  // Returns { text, quality } — quality is MyMemory's own 0–1 match score,
+  // or null if the API didn't provide one.
+  async function translateText(text, fromCode, toCode){
+    const cleaned = normalizeForTranslation(text, fromCode);
+    const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(cleaned) +
+                '&langpair=' + fromCode.toLowerCase() + '|' + toCode.toLowerCase();
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('request failed');
+    const data = await res.json();
+    const translated = data && data.responseData && data.responseData.translatedText;
+    if(!translated) throw new Error('no translation');
+    const rawQuality = data && data.responseData && data.responseData.match;
+    const quality = typeof rawQuality === 'number' ? rawQuality : (rawQuality ? parseFloat(rawQuality) : null);
+    return { text: translated, quality: isNaN(quality) ? null : quality };
+  }
+
+  // ---------- text-to-speech ----------
+  function speak(text, code){
+    if(!('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = LANGS[code].bcp;
+      speechSynthesis.speak(utter);
+    }catch(e){}
+  }
+
+  // ---------- recording flow ----------
+  function startRecording(key){
+    if(!speechSupported){
+      showToast('Spracherkennung wird von diesem Browser nicht unterstützt.');
+      return;
+    }
+    if(activeKey && activeKey !== key){
+      showToast('Bitte zuerst die andere Aufnahme beenden.');
+      return;
+    }
+
+    activeKey = key;
+    const p = state['panel'+key];
+    const L = LANGS[p.lang];
+    transcripts[key] = '';
+
+    el('mic'+key).classList.add('recording');
+    el('mic'+otherKey(key)).classList.add('disabled');
+    updateHint(key, true);
+    setCaption(key, '…', 'listening');
+    el('status'+key).textContent = L.listening;
+
+    const rec = new SpeechRecognitionImpl();
+    rec.lang = L.bcp;
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onresult = (e) => {
+      let finalT = '', interimT = '';
+      for(let i = e.resultIndex; i < e.results.length; i++){
+        const r = e.results[i];
+        if(r.isFinal) finalT += r[0].transcript;
+        else interimT += r[0].transcript;
+      }
+      if(finalT) transcripts[key] += finalT;
+      const live = (transcripts[key] + ' ' + interimT).trim();
+      setCaption(key, live || '…', 'listening');
+    };
+
+    rec.onerror = (e) => {
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        showToast('Mikrofonzugriff wurde nicht erlaubt.');
+      } else if(e.error === 'network'){
+        showToast('Keine Verbindung — Spracherkennung braucht Internet.');
+      } else if(e.error !== 'no-speech' && e.error !== 'aborted'){
+        showToast('Fehler bei der Spracherkennung.');
+      }
+    };
+
+    rec.onend = () => { finishRecording(key); };
+
+    recognizers[key] = rec;
+    try{
+      rec.start();
+    }catch(err){
+      showToast('Spracherkennung konnte nicht gestartet werden.');
+      activeKey = null;
+      el('mic'+key).classList.remove('recording');
+      el('mic'+otherKey(key)).classList.remove('disabled');
+      resetPanelIdle(key);
+    }
+  }
+
+  function stopRecording(key){
+    const rec = recognizers[key];
+    if(rec){ try{ rec.stop(); }catch(e){} }
+  }
+
+  async function finishRecording(key){
+    el('mic'+key).classList.remove('recording');
+    updateHint(key, false);
+    recognizers[key] = null;
+
+    const p = state['panel'+key];
+    const text = transcripts[key].trim();
+
+    if(!text){
+      showToast('Nichts erkannt — bitte erneut versuchen.');
+      resetPanelIdle(key);
+      activeKey = null;
+      el('mic'+otherKey(key)).classList.remove('disabled');
+      return;
+    }
+
+    setCaption(key, text, '');
+    el('status'+key).textContent = LANGS[p.lang].ready;
+
+    const otherK = otherKey(key);
+    const otherP = state['panel'+otherK];
+    el('status'+otherK).textContent = 'Übersetze …';
+    setCaption(otherK, '…', 'listening');
+
+    try{
+      const result = await translateText(text, p.lang, otherP.lang);
+      setCaption(otherK, result.text, '');
+      el('status'+otherK).textContent = LANGS[otherP.lang].ready;
+      if(result.quality !== null && result.quality < 0.5){
+        showToast('Übersetzung unsicher — bitte im Kontext prüfen.');
+      }
+      if(state.settings.readAloud) speak(result.text, otherP.lang);
+    }catch(err){
+      showToast('Übersetzung fehlgeschlagen — Internetverbindung prüfen.');
+      resetPanelIdle(otherK);
+    }
+
+    activeKey = null;
+    el('mic'+otherK).classList.remove('disabled');
+  }
+
+  // ---------- mic button handlers ----------
+  function micDown(key){
+    if(state.settings.mode !== 'hold') return;
+    if(el('mic'+key).classList.contains('disabled')) return;
+    startRecording(key);
+  }
+  function micUp(key){
+    if(state.settings.mode !== 'hold') return;
+    if(activeKey === key) stopRecording(key);
+  }
+  function micCancel(key){
+    if(state.settings.mode !== 'hold') return;
+    if(activeKey === key) stopRecording(key);
+  }
+  function micTap(key){
+    if(state.settings.mode !== 'tap') return;
+    if(el('mic'+key).classList.contains('disabled')) return;
+    if(activeKey === key){
+      stopRecording(key);
+    } else if(!activeKey){
+      startRecording(key);
+    } else {
+      showToast('Bitte zuerst die andere Aufnahme beenden.');
+    }
+  }
+
+  render();
+  checkCompat();
+</script>
+
+</body>
+</html>
