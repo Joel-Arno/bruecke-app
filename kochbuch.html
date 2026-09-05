@@ -1,0 +1,3105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Kochbuch</title>
+<meta name="description" content="Rezepte, Küchentipps, Lernkurse und ein Küchen-Assistent – alles offline in einer Datei.">
+<meta name="theme-color" content="#F5F0E6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kochbuch">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F5F0E6;
+    --card: #FFFCF4;
+    --ink: #201C16;
+    --ink-soft: #6B6355;
+    --ink-faint: #9C9484;
+    --line: rgba(32,28,22,0.10);
+    --paprika: #C4622D;
+    --paprika-deep: #9C4B21;
+    --herb: #3F6B4A;
+    --herb-deep: #2F5238;
+    --deep: #2B4C5C;
+    --gold: #F2C14E;
+    --shadow: 0 10px 24px -18px rgba(32,28,22,0.75);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, textarea, select{ font: inherit; color: inherit; }
+
+  .app-shell{
+    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ================= HEADER ================= */
+  .app-head{
+    padding: max(14px, env(safe-area-inset-top)) 18px 10px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    flex: 0 0 auto;
+  }
+  .head-title{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 25px;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+  }
+  .head-sub{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 3px;
+  }
+  .head-actions{ display: flex; gap: 8px; }
+
+  .icon-btn{
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(32,28,22,0.05);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding: 0;
+  }
+  .icon-btn:active{ background: rgba(32,28,22,0.12); }
+  .icon-btn .badge{
+    position: absolute;
+    top: -3px; right: -3px;
+    min-width: 17px; height: 17px;
+    border-radius: 9px;
+    background: var(--paprika);
+    color: #fff;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  .icon-btn .badge.on{ display: flex; }
+
+  /* ================= VIEWS ================= */
+  .views{ flex: 1 1 auto; position: relative; overflow: hidden; }
+  .view{
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 18px calc(24px + env(safe-area-inset-bottom));
+    display: none;
+  }
+  .view.active{ display: block; }
+
+  /* ================= TAB BAR ================= */
+  .tabbar{
+    flex: 0 0 auto;
+    display: flex;
+    background: var(--card);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab{
+    flex: 1 1 0;
+    padding: 9px 2px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--ink-faint);
+    background: none;
+    border: none;
+  }
+  .tab .ic{ font-size: 17px; line-height: 1; }
+  .tab .lb{ font-size: 10.5px; letter-spacing: 0.02em; }
+  .tab.active{ color: var(--paprika); }
+  .tab.active .lb{ font-weight: 600; }
+
+  /* ================= COMMON BITS ================= */
+  .section-title{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 18px;
+    margin: 22px 0 10px;
+    letter-spacing: -0.01em;
+  }
+  .section-title:first-child{ margin-top: 4px; }
+  .muted{ color: var(--ink-soft); font-size: 13.5px; line-height: 1.5; }
+  .mono{ font-family: 'IBM Plex Mono', monospace; }
+
+  .search-wrap{ position: relative; margin-bottom: 12px; }
+  .search{
+    width: 100%;
+    padding: 12px 14px 12px 38px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 15px;
+    outline: none;
+  }
+  .search:focus{ border-color: rgba(196,98,45,0.55); }
+  .search-ic{
+    position: absolute;
+    left: 13px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.45;
+  }
+
+  .chips{
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 14px;
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar{ display: none; }
+  .chip{
+    flex: 0 0 auto;
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .chip.on{ background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 14.5px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn.primary{ background: var(--paprika); border-color: var(--paprika); color: #fff; }
+  .btn.dark{ background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .btn.wide{ width: 100%; }
+  .btn.sm{ padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+  .btn[disabled]{ opacity: 0.45; pointer-events: none; }
+
+  .empty{
+    text-align: center;
+    padding: 42px 20px;
+    color: var(--ink-faint);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .empty .big{ font-size: 30px; display: block; margin-bottom: 10px; }
+
+  /* ================= RECIPE CARDS ================= */
+  .recipe-card{
+    display: flex;
+    gap: 13px;
+    align-items: stretch;
+    padding: 12px;
+    margin-bottom: 11px;
+    cursor: pointer;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+  .recipe-card:active{ background: #FBF6EC; }
+  .thumb{
+    flex: 0 0 62px;
+    height: 62px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 27px;
+    background: linear-gradient(150deg, #F7E9D2, #EFD9B8);
+  }
+  .rc-body{ flex: 1 1 auto; min-width: 0; }
+  .rc-title{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 16.5px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .rc-meta{
+    margin-top: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .rc-tags{ margin-top: 7px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag{
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(63,107,74,0.10);
+    color: var(--herb-deep);
+  }
+  .tag.warn{ background: rgba(196,98,45,0.12); color: var(--paprika-deep); }
+  .tag.match{ background: var(--gold); color: #4A3708; font-weight: 600; }
+  .fav-dot{ flex: 0 0 auto; align-self: flex-start; font-size: 14px; opacity: 0.9; }
+
+  /* ================= RECIPE DETAIL ================= */
+  .detail-hero{
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    background: linear-gradient(155deg, #F7E9D2, #EAD3AE);
+    position: relative;
+  }
+  .detail-emoji{ font-size: 40px; line-height: 1; }
+  .detail-title{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 10px 0 6px;
+  }
+  .detail-desc{ font-size: 14px; line-height: 1.55; color: #55483A; }
+  .meta-row{
+    display: flex;
+    gap: 16px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .meta-item .k{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(32,28,22,0.5);
+  }
+  .meta-item .v{ font-size: 14.5px; font-weight: 600; margin-top: 2px; }
+
+  .portion-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .stepper{ display: flex; align-items: center; gap: 14px; }
+  .stepper button{
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .stepper .val{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    min-width: 92px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .ing-list{ list-style: none; margin: 0; padding: 0; }
+  .ing{
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 2px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .ing:last-child{ border-bottom: none; }
+  .ing .box{
+    flex: 0 0 17px; height: 17px;
+    border: 1.5px solid rgba(32,28,22,0.28);
+    border-radius: 5px;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+  }
+  .ing.done .box{ background: var(--herb); border-color: var(--herb); color: #fff; }
+  .ing.done .nm{ text-decoration: line-through; opacity: 0.45; }
+  .ing .qt{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    min-width: 74px;
+    color: var(--paprika-deep);
+  }
+  .ing .nm{ font-size: 14.5px; flex: 1; }
+  .ing .note{ display: block; font-size: 12px; color: var(--ink-faint); }
+
+  .steps{ list-style: none; margin: 0; padding: 0; counter-reset: st; }
+  .step{
+    display: flex;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .step:last-child{ border-bottom: none; }
+  .step-no{
+    flex: 0 0 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-text{ font-size: 14.5px; line-height: 1.55; flex: 1; }
+  .step-timer{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(43,76,92,0.10);
+    color: var(--deep);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    cursor: pointer;
+    border: none;
+  }
+
+  .inline-tip{
+    margin-top: 10px;
+    padding: 11px 13px;
+    border-left: 3px solid var(--gold);
+    background: rgba(242,193,78,0.12);
+    border-radius: 0 10px 10px 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .inline-tip b{ font-weight: 600; }
+
+  .action-row{ display: flex; gap: 9px; margin: 16px 0 4px; }
+  .action-row .btn{ flex: 1; }
+
+  /* ================= COOK MODE ================= */
+  .cook{
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: var(--deep);
+    color: var(--paper);
+    display: none;
+    flex-direction: column;
+    padding: max(18px, env(safe-area-inset-top)) 22px calc(18px + env(safe-area-inset-bottom));
+  }
+  .cook.open{ display: flex; }
+  .cook-top{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .cook-x{ font-size: 19px; cursor: pointer; opacity: 0.8; background:none; border:none; color:inherit; padding:0; }
+  .cook-body{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 20px 0;
+  }
+  .cook-step{
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: clamp(21px, 5.6vw, 30px);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+  .cook-ings{
+    margin-top: 20px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    opacity: 0.72;
+  }
+  .cook-timer{ margin: 22px 0 4px; display: none; }
+  .cook-timer.on{ display: block; }
+  .cook-timer button{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 17px;
+    letter-spacing: 0.02em;
+    padding: 12px 20px;
+    border-radius: 999px;
+    background: rgba(245,240,230,0.14);
+    border: 1px solid rgba(245,240,230,0.32);
+    color: var(--paper);
+    cursor: pointer;
+  }
+  .cook-timer button:active{ background: rgba(245,240,230,0.26); }
+  .cook-nav{ display: flex; gap: 10px; align-items: center; }
+  .cook-nav .btn{
+    flex: 1;
+    background: rgba(245,240,230,0.12);
+    border-color: rgba(245,240,230,0.3);
+    color: var(--paper);
+  }
+  .cook-nav .btn.primary{ background: var(--gold); border-color: var(--gold); color: #40320C; }
+  .cook-progress{
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(245,240,230,0.2);
+    margin: 12px 0 14px;
+    overflow: hidden;
+  }
+  .cook-progress i{ display: block; height: 100%; background: var(--gold); transition: width 0.25s; }
+
+  /* ================= LEARN ================= */
+  .course{
+    padding: 15px;
+    margin-bottom: 11px;
+    cursor: pointer;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+  .course-head{ display: flex; align-items: center; gap: 11px; }
+  .course-ic{ font-size: 23px; }
+  .course-name{ font-family: 'Fraunces', serif; font-weight: 600; font-size: 16.5px; flex: 1; }
+  .bar{ height: 5px; border-radius: 3px; background: rgba(32,28,22,0.09); margin-top: 11px; overflow: hidden; }
+  .bar i{ display: block; height: 100%; background: var(--herb); transition: width 0.3s; }
+  .course-meta{
+    margin-top: 7px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+
+  .lesson-body{ font-size: 15px; line-height: 1.65; }
+  .lesson-body h4{
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    margin: 18px 0 6px;
+  }
+  .lesson-body ul{ padding-left: 20px; margin: 8px 0; }
+  .lesson-body li{ margin-bottom: 6px; }
+  .lesson-body p{ margin: 8px 0; }
+
+  .quiz-q{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 19px;
+    line-height: 1.35;
+    margin-bottom: 16px;
+  }
+  .opt{
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 14px 15px;
+    margin-bottom: 9px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 14.5px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+  .opt.right{ background: rgba(63,107,74,0.14); border-color: var(--herb); }
+  .opt.wrong{ background: rgba(196,98,45,0.12); border-color: var(--paprika); }
+  .opt[disabled]{ pointer-events: none; }
+  .quiz-fb{
+    margin-top: 12px;
+    padding: 13px 14px;
+    border-radius: 12px;
+    background: rgba(43,76,92,0.08);
+    font-size: 13.5px;
+    line-height: 1.55;
+    display: none;
+  }
+  .quiz-fb.on{ display: block; }
+
+  /* ================= CHAT / KI ================= */
+  .chat-wrap{
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+  .chat-scroll{
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 16px 18px 8px;
+  }
+  .msg{
+    max-width: 86%;
+    padding: 12px 14px;
+    border-radius: 15px;
+    margin-bottom: 10px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.ai{ background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+  .msg.me{
+    background: var(--paprika);
+    color: #fff;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+  }
+  .msg b{ font-weight: 600; }
+  .msg .src{
+    display: block;
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .msg-link{
+    display: inline-block;
+    margin: 7px 6px 0 0;
+    padding: 6px 11px;
+    border-radius: 999px;
+    background: rgba(43,76,92,0.10);
+    color: var(--deep);
+    font-size: 12.5px;
+    cursor: pointer;
+    border: none;
+  }
+  .typing{ display: flex; gap: 4px; padding: 4px 2px; }
+  .typing i{
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    animation: bob 1s infinite;
+  }
+  .typing i:nth-child(2){ animation-delay: 0.15s; }
+  .typing i:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes bob{ 0%,60%,100%{ opacity: 0.3; transform: translateY(0);} 30%{ opacity: 1; transform: translateY(-3px);} }
+
+  .chat-sugg{
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 0 18px 8px;
+    scrollbar-width: none;
+  }
+  .chat-sugg::-webkit-scrollbar{ display: none; }
+
+  .chat-input-row{
+    display: flex;
+    gap: 9px;
+    padding: 10px 18px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: var(--paper);
+    align-items: flex-end;
+  }
+  .chat-input{
+    flex: 1;
+    resize: none;
+    max-height: 110px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 15px;
+    line-height: 1.4;
+    outline: none;
+  }
+  .chat-input:focus{ border-color: rgba(196,98,45,0.55); }
+  .send-btn{
+    flex: 0 0 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--paprika);
+    color: #fff;
+    border: none;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  .send-btn[disabled]{ opacity: 0.4; }
+
+  /* ================= LISTS (Einkauf / Vorrat) ================= */
+  .li{
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .li:last-child{ border-bottom: none; }
+  .li .box{
+    flex: 0 0 18px; height: 18px;
+    border: 1.5px solid rgba(32,28,22,0.28);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+    cursor: pointer;
+  }
+  .li.done .box{ background: var(--herb); border-color: var(--herb); color: #fff; }
+  .li.done .txt{ text-decoration: line-through; opacity: 0.45; }
+  .li .txt{ flex: 1; font-size: 14.5px; }
+  .li .sub{ display: block; font-size: 11.5px; color: var(--ink-faint); }
+  .li .x{ color: var(--ink-faint); font-size: 15px; cursor: pointer; padding: 0 4px; background:none; border:none; }
+
+  .add-row{ display: flex; gap: 8px; margin-bottom: 12px; }
+  .add-row input{
+    flex: 1;
+    padding: 11px 13px;
+    border-radius: 11px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 14.5px;
+    outline: none;
+  }
+
+  /* ================= TIPS ================= */
+  .tip-card{
+    padding: 14px 15px;
+    margin-bottom: 10px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+  .tip-h{ display: flex; align-items: baseline; gap: 9px; }
+  .tip-title{ font-family: 'Fraunces', serif; font-weight: 600; font-size: 15.5px; flex: 1; }
+  .tip-cat{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .tip-body{ font-size: 14px; line-height: 1.6; margin-top: 7px; color: #3B342B; }
+
+  .hero-tip{
+    padding: 18px;
+    border-radius: 16px;
+    background: linear-gradient(155deg, var(--deep), #1E3641);
+    color: var(--paper);
+    margin-bottom: 18px;
+  }
+  .hero-tip .k{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.65;
+  }
+  .hero-tip .t{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 19px;
+    margin: 8px 0 6px;
+    line-height: 1.25;
+  }
+  .hero-tip .b{ font-size: 14px; line-height: 1.6; opacity: 0.9; }
+
+  /* ================= SHEETS / OVERLAY ================= */
+  .sheet-overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(32,28,22,0.45);
+    display: none;
+    align-items: flex-end;
+    z-index: 70;
+  }
+  .sheet-overlay.open{ display: flex; }
+  .sheet{
+    width: 100%;
+    max-height: 86vh;
+    overflow-y: auto;
+    background: var(--paper);
+    border-radius: 22px 22px 0 0;
+    padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+  }
+  .sheet-handle{
+    width: 38px; height: 4px;
+    border-radius: 2px;
+    background: rgba(32,28,22,0.2);
+    margin: 0 auto 14px;
+  }
+  .sheet-title{ font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px; }
+  .sheet-sub{ font-size: 13px; color: var(--ink-soft); margin: 4px 0 16px; }
+  .sheet-note{
+    margin-top: 16px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-faint);
+  }
+
+  .setting-block{ margin-bottom: 20px; }
+  .setting-label{ font-size: 14.5px; font-weight: 500; }
+  .setting-desc{ font-size: 12.5px; color: var(--ink-soft); margin: 3px 0 9px; line-height: 1.45; }
+  .toggle-row{ display: flex; align-items: center; justify-content: space-between; gap: 14px; cursor: pointer; }
+  .toggle{
+    flex: 0 0 46px;
+    height: 27px;
+    border-radius: 999px;
+    background: rgba(32,28,22,0.18);
+    padding: 3px;
+    transition: background 0.18s;
+  }
+  .toggle.on{ background: var(--herb); }
+  .toggle-knob{
+    width: 21px; height: 21px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.18s;
+  }
+  .toggle.on .toggle-knob{ transform: translateX(19px); }
+  .key-input{
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 11px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    outline: none;
+  }
+
+  /* ================= TOAST + TIMER PILL ================= */
+  .toast{
+    position: fixed;
+    left: 50%;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(14px);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 11px 17px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 90;
+    max-width: 84vw;
+    text-align: center;
+  }
+  .toast.on{ opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* über der Timer-Pille anzeigen, damit sich beide nicht überlappen */
+  .toast.raised{ bottom: calc(126px + env(safe-area-inset-bottom)); }
+
+  .timer-pill{
+    position: fixed;
+    right: 16px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    background: var(--deep);
+    color: var(--paper);
+    border-radius: 999px;
+    padding: 9px 15px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    box-shadow: 0 8px 20px -10px rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    gap: 9px;
+    z-index: 55;
+    cursor: pointer;
+    border: none;
+  }
+  .timer-pill.on{ display: flex; }
+  .timer-pill.ring{ background: var(--paprika); animation: pulse 0.9s infinite; }
+  @keyframes pulse{ 0%,100%{ transform: scale(1);} 50%{ transform: scale(1.05);} }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <div class="toast" id="toast"></div>
+  <button class="timer-pill" id="timerPill" onclick="openTimerSheet()"></button>
+
+  <!-- ================= HEADER ================= -->
+  <div class="app-head">
+    <div>
+      <div class="head-title" id="headTitle">Kochbuch</div>
+      <div class="head-sub" id="headSub">Rezepte · Technik · Assistent</div>
+    </div>
+    <div class="head-actions">
+      <button class="icon-btn" id="backBtn" onclick="goBack()" style="display:none;" aria-label="Zurück">‹</button>
+      <button class="icon-btn" onclick="openSettings()" aria-label="Einstellungen">⚙</button>
+    </div>
+  </div>
+
+  <!-- ================= VIEWS ================= -->
+  <div class="views">
+
+    <!-- ---- REZEPTE ---- -->
+    <div class="view active" id="viewRecipes">
+      <div class="search-wrap">
+        <span class="search-ic">⌕</span>
+        <input class="search" id="recipeSearch" placeholder="Rezept oder Zutat suchen …" oninput="renderRecipes()">
+      </div>
+      <div class="chips" id="recipeChips"></div>
+      <div id="recipeList"></div>
+    </div>
+
+    <!-- ---- REZEPT-DETAIL ---- -->
+    <div class="view" id="viewDetail"></div>
+
+    <!-- ---- LERNEN ---- -->
+    <div class="view" id="viewLearn"></div>
+
+    <!-- ---- LEKTION / QUIZ ---- -->
+    <div class="view" id="viewLesson"></div>
+
+    <!-- ---- KI-ASSISTENT ---- -->
+    <div class="view" id="viewChat" style="padding:0;">
+      <div class="chat-wrap">
+        <div class="chat-scroll" id="chatScroll"></div>
+        <div class="chat-sugg" id="chatSugg"></div>
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chatInput" rows="1" placeholder="Frag mich etwas …"
+            oninput="autoGrow(this)" onkeydown="chatKey(event)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendChat()" aria-label="Senden">↑</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- TIPPS ---- -->
+    <div class="view" id="viewTips"></div>
+
+    <!-- ---- KÜCHE (Listen, Vorrat, Profil) ---- -->
+    <div class="view" id="viewKitchen"></div>
+
+  </div>
+
+  <!-- ================= TAB BAR ================= -->
+  <div class="tabbar">
+    <button class="tab active" id="tabRecipes" onclick="switchTab('recipes')"><span class="ic">🍲</span><span class="lb">Rezepte</span></button>
+    <button class="tab" id="tabLearn" onclick="switchTab('learn')"><span class="ic">🎓</span><span class="lb">Lernen</span></button>
+    <button class="tab" id="tabChat" onclick="switchTab('chat')"><span class="ic">✦</span><span class="lb">Assistent</span></button>
+    <button class="tab" id="tabTips" onclick="switchTab('tips')"><span class="ic">💡</span><span class="lb">Tipps</span></button>
+    <button class="tab" id="tabKitchen" onclick="switchTab('kitchen')"><span class="ic">🧺</span><span class="lb">Küche</span></button>
+  </div>
+
+  <!-- ================= KOCHMODUS ================= -->
+  <div class="cook" id="cookMode">
+    <div class="cook-top">
+      <span id="cookCount">Schritt 1 / 5</span>
+      <button class="cook-x" onclick="closeCook()" aria-label="Kochmodus beenden">✕</button>
+    </div>
+    <div class="cook-progress"><i id="cookBar" style="width:0%"></i></div>
+    <div class="cook-body">
+      <div class="cook-step" id="cookStep"></div>
+      <div class="cook-timer" id="cookTimer"></div>
+      <div class="cook-ings" id="cookIngs"></div>
+    </div>
+    <div class="cook-nav">
+      <button class="btn" onclick="cookPrev()">Zurück</button>
+      <button class="btn primary" id="cookNextBtn" onclick="cookNext()">Weiter</button>
+    </div>
+  </div>
+
+  <!-- ================= SHEETS ================= -->
+  <div class="sheet-overlay" id="settingsOverlay" onclick="closeOnOverlay(event,'settingsOverlay')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Einstellungen</div>
+      <div class="sheet-sub">Alles bleibt auf diesem Gerät.</div>
+
+      <div class="setting-block">
+        <div class="toggle-row" onclick="toggleSetting('speak')">
+          <div>
+            <div class="setting-label">Schritte vorlesen</div>
+            <div class="setting-desc" style="margin-bottom:0;">Liest im Kochmodus jeden Schritt laut vor.</div>
+          </div>
+          <div class="toggle" id="tgSpeak"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-block">
+        <div class="toggle-row" onclick="toggleSetting('awake')">
+          <div>
+            <div class="setting-label">Display wach halten</div>
+            <div class="setting-desc" style="margin-bottom:0;">Bildschirm bleibt im Kochmodus an (falls unterstützt).</div>
+          </div>
+          <div class="toggle" id="tgAwake"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">KI-Assistent</div>
+        <div class="setting-desc">
+          Ohne Schlüssel antwortet der Assistent offline aus dem eingebauten Küchenwissen.
+          Mit einem eigenen Anthropic-API-Schlüssel antwortet zusätzlich ein Sprachmodell –
+          der Schlüssel wird nur lokal gespeichert und ausschließlich an api.anthropic.com gesendet.
+        </div>
+        <input class="key-input" id="apiKeyInput" type="password" placeholder="sk-ant-… (optional)" autocomplete="off">
+        <div style="display:flex; gap:8px; margin-top:9px;">
+          <button class="btn sm" onclick="saveApiKey()">Speichern</button>
+          <button class="btn sm" onclick="clearApiKey()">Entfernen</button>
+        </div>
+        <div class="setting-desc mono" id="keyStatus" style="margin-top:9px;"></div>
+      </div>
+
+      <div class="setting-block">
+        <div class="setting-label">Daten</div>
+        <div class="setting-desc">Favoriten, Einkaufsliste, Vorrat und Lernfortschritt zurücksetzen.</div>
+        <button class="btn sm" onclick="resetAll()">Alles zurücksetzen</button>
+      </div>
+
+      <div class="sheet-note">
+        Kochbuch läuft vollständig offline – Rezepte, Tipps und Lernkurse stecken in dieser Datei.
+        Internet wird nur gebraucht, wenn du den optionalen KI-Schlüssel hinterlegst.
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="timerOverlay" onclick="closeOnOverlay(event,'timerOverlay')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Timer</div>
+      <div class="sheet-sub" id="timerSheetSub">Kein Timer aktiv</div>
+      <div id="timerList"></div>
+      <div class="add-row" style="margin-top:14px;">
+        <input id="timerMin" type="number" min="1" max="600" placeholder="Minuten">
+        <button class="btn" onclick="addManualTimer()">Starten</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   DATEN – Rezepte
+   Mengen gelten für recipe.base Portionen und werden beim Rendern skaliert.
+   fix:true bei Zutaten, die sich nicht sinnvoll hochrechnen lassen (Salz, Öl zum Braten).
+   ========================================================================== */
+const RECIPES = [
+{
+  id:'aglio', name:'Spaghetti Aglio e Olio', emoji:'🍝', cat:'Pasta', minutes:20, level:'Einfach',
+  base:2, diet:'vegan', tags:['Feierabend','5 Zutaten','Vorratskammer'],
+  desc:'Das schnellste gute Essen der Welt. Steht und fällt mit einer Sache: Der Knoblauch darf goldgelb werden, niemals braun.',
+  ings:[
+    {q:200,u:'g',n:'Spaghetti'},
+    {q:4,u:'Zehen',n:'Knoblauch',note:'in feine Scheiben geschnitten'},
+    {q:6,u:'EL',n:'Olivenöl'},
+    {q:1,u:'',n:'getrocknete Chilischote',note:'oder ½ TL Chiliflocken'},
+    {q:1,u:'Bund',n:'Petersilie',note:'glatt, fein gehackt'},
+    {q:1,u:'Prise',n:'Salz',fix:true},
+    {q:1,u:'Prise',n:'schwarzer Pfeffer',fix:true}
+  ],
+  steps:[
+    {t:'Reichlich Wasser aufsetzen und kräftig salzen – es soll nach Meerwasser schmecken. Spaghetti nach Packung al dente kochen.',timer:9},
+    {t:'Währenddessen Olivenöl in einer großen Pfanne bei mittlerer Hitze erwärmen. Knoblauchscheiben und zerbröselte Chili hineingeben.'},
+    {t:'Knoblauch langsam ziehen lassen, bis er hellgolden ist – etwa 3 Minuten. Sobald er bräunt, wird er bitter: dann Pfanne sofort vom Herd ziehen.',timer:3},
+    {t:'Eine Tasse Nudelwasser abschöpfen, bevor du die Pasta abgießt.'},
+    {t:'Spaghetti in die Pfanne geben, 4–5 EL Nudelwasser dazu und alles bei hoher Hitze 30 Sekunden schwenken, bis die Sauce cremig an den Nudeln hängt.'},
+    {t:'Petersilie unterheben, mit Salz und Pfeffer abschmecken und sofort servieren.'}
+  ],
+  tips:['Das stärkehaltige Nudelwasser ist die eigentliche Sauce – ohne es bleibt das Öl separat und die Pasta wirkt fettig.']
+},
+{
+  id:'dal', name:'Rotes Linsen-Dal', emoji:'🥘', cat:'Eintopf', minutes:30, level:'Einfach',
+  base:4, diet:'vegan', tags:['Meal Prep','Vorratskammer','Eintopf'],
+  desc:'Ein Topf, kein Einweichen, fertig in einer halben Stunde. Rote Linsen zerfallen von selbst zu einer sämigen Suppe.',
+  ings:[
+    {q:250,u:'g',n:'rote Linsen',note:'kalt abgespült'},
+    {q:1,u:'',n:'Zwiebel',note:'fein gewürfelt'},
+    {q:3,u:'Zehen',n:'Knoblauch',note:'gehackt'},
+    {q:20,u:'g',n:'Ingwer',note:'frisch, gerieben'},
+    {q:2,u:'TL',n:'Kreuzkümmel, gemahlen'},
+    {q:2,u:'TL',n:'Kurkuma'},
+    {q:1,u:'TL',n:'Garam Masala'},
+    {q:1,u:'Dose',n:'gehackte Tomaten',note:'400 g'},
+    {q:400,u:'ml',n:'Kokosmilch'},
+    {q:600,u:'ml',n:'Gemüsebrühe'},
+    {q:2,u:'EL',n:'Öl',fix:true},
+    {q:1,u:'',n:'Limette',note:'Saft davon'}
+  ],
+  steps:[
+    {t:'Öl im Topf erhitzen. Zwiebel bei mittlerer Hitze 5 Minuten glasig dünsten, dann Knoblauch und Ingwer 1 Minute mitbraten.',timer:5},
+    {t:'Kreuzkümmel, Kurkuma und Garam Masala dazugeben und 30 Sekunden im Fett rösten, bis es kräftig duftet. Das ist der Schritt, der aus Pulver Geschmack macht.'},
+    {t:'Tomaten, Kokosmilch, Brühe und Linsen dazugeben, aufkochen, dann Hitze reduzieren.'},
+    {t:'Offen 20 Minuten leise köcheln lassen, ab und zu umrühren, bis die Linsen zerfallen sind.',timer:20},
+    {t:'Mit Limettensaft und Salz abschmecken. Die Säure ganz am Ende hebt das ganze Gericht.'}
+  ],
+  tips:['Dal wird über Nacht dicker. Beim Aufwärmen einfach einen Schluck Wasser oder Brühe einrühren.']
+},
+{
+  id:'ofengemuese', name:'Ofengemüse mit Feta', emoji:'🫑', cat:'Ofen', minutes:45, level:'Einfach',
+  base:3, diet:'veg', tags:['Ein Blech','Vegetarisch','Meal Prep'],
+  desc:'Ein Blech, kaum Arbeit, viel Röstaroma. Der Trick ist Platz: Gemüse, das sich stapelt, dämpft statt zu rösten.',
+  ings:[
+    {q:400,u:'g',n:'Kartoffeln',note:'festkochend, in 2-cm-Würfeln'},
+    {q:2,u:'',n:'Paprika',note:'in breite Streifen geschnitten'},
+    {q:1,u:'',n:'Zucchini',note:'in dicke Halbmonde'},
+    {q:1,u:'',n:'rote Zwiebel',note:'in Spalten'},
+    {q:200,u:'g',n:'Kirschtomaten'},
+    {q:200,u:'g',n:'Feta'},
+    {q:4,u:'EL',n:'Olivenöl'},
+    {q:2,u:'TL',n:'getrockneter Oregano'},
+    {q:1,u:'TL',n:'geräuchertes Paprikapulver'}
+  ],
+  steps:[
+    {t:'Ofen auf 210 °C Ober-/Unterhitze vorheizen (Umluft 190 °C). Blech mit Backpapier auslegen.'},
+    {t:'Kartoffeln mit der Hälfte des Öls, Oregano, Paprikapulver und Salz mischen und mit Abstand auf dem Blech verteilen. 15 Minuten vorbacken – sie brauchen den Vorsprung.',timer:15},
+    {t:'Paprika, Zucchini und Zwiebel mit dem restlichen Öl mischen, zum Blech geben und alles wieder auseinanderschieben. Weitere 15 Minuten backen.',timer:15},
+    {t:'Tomaten dazugeben, Feta in groben Stücken darüberbröseln. Nochmals 10 Minuten backen, bis der Feta Farbe nimmt.',timer:10},
+    {t:'Mit Pfeffer und einem Spritzer Zitrone servieren.'}
+  ],
+  tips:['Lieber zwei Bleche als eins zu voll. Auf einem überladenen Blech entsteht Dampf, und Dampf verhindert Bräunung.']
+},
+{
+  id:'ruehrei', name:'Cremiges Rührei', emoji:'🍳', cat:'Frühstück', minutes:10, level:'Einfach',
+  base:2, diet:'veg', tags:['Frühstück','Technik','5 Zutaten'],
+  desc:'Rührei wird nicht durch Zutaten besser, sondern durch niedrige Hitze und Geduld.',
+  ings:[
+    {q:4,u:'',n:'Eier'},
+    {q:20,u:'g',n:'Butter'},
+    {q:1,u:'EL',n:'Crème fraîche',note:'optional, für extra Cremigkeit'},
+    {q:1,u:'Prise',n:'Salz',fix:true},
+    {q:1,u:'Bund',n:'Schnittlauch',note:'in Röllchen'}
+  ],
+  steps:[
+    {t:'Eier in einer Schüssel gründlich verquirlen, bis Eiweiß und Eigelb vollständig verbunden sind. Noch nicht salzen.'},
+    {t:'Butter in einer beschichteten Pfanne bei niedriger Hitze schmelzen – sie soll schäumen, nicht bräunen.'},
+    {t:'Eier hineingeben und mit einem Teigschaber langsam vom Rand zur Mitte schieben. Immer wieder die Pfanne kurz vom Herd nehmen.',timer:4},
+    {t:'Vom Herd nehmen, wenn das Ei noch leicht glänzt und feuchter aussieht, als du es haben willst – es gart nach.'},
+    {t:'Crème fraîche unterrühren, salzen, Schnittlauch darüber und sofort servieren.'}
+  ],
+  tips:['Salz vorher entzieht dem Ei Wasser und macht es wässrig. Immer erst am Ende salzen.']
+},
+{
+  id:'kuerbissuppe', name:'Kürbissuppe mit Ingwer', emoji:'🎃', cat:'Suppe', minutes:35, level:'Einfach',
+  base:4, diet:'veg', tags:['Herbst','Suppe','Meal Prep'],
+  desc:'Hokkaido muss nicht geschält werden – das spart die halbe Arbeit und die Schale gibt Farbe.',
+  ings:[
+    {q:1,u:'',n:'Hokkaido-Kürbis',note:'ca. 1 kg, entkernt, gewürfelt'},
+    {q:1,u:'',n:'Zwiebel',note:'gewürfelt'},
+    {q:20,u:'g',n:'Ingwer',note:'gerieben'},
+    {q:1,u:'',n:'Kartoffel',note:'mehligkochend, gewürfelt'},
+    {q:800,u:'ml',n:'Gemüsebrühe'},
+    {q:150,u:'ml',n:'Sahne',note:'oder Kokosmilch'},
+    {q:2,u:'EL',n:'Öl',fix:true},
+    {q:1,u:'EL',n:'Apfelessig'},
+    {q:2,u:'EL',n:'Kürbiskerne',note:'zum Bestreuen'}
+  ],
+  steps:[
+    {t:'Öl im großen Topf erhitzen, Zwiebel 5 Minuten anschwitzen, Ingwer kurz mitbraten.',timer:5},
+    {t:'Kürbis und Kartoffel dazugeben und 3 Minuten mitbraten – etwas Farbe am Boden ist erwünscht.'},
+    {t:'Mit Brühe ablöschen und dabei den Bratensatz vom Boden lösen. Aufkochen und 20 Minuten köcheln, bis alles weich ist.',timer:20},
+    {t:'Sahne zugeben und fein pürieren, bis die Suppe völlig glatt ist.'},
+    {t:'Mit Salz, Pfeffer und Apfelessig abschmecken. Kürbiskerne in einer trockenen Pfanne rösten und darüberstreuen.'}
+  ],
+  tips:['Pürierte Suppen wirken oft flach. Ein Schuss Säure – Essig oder Zitrone – ganz zum Schluss macht sie wach.']
+},
+{
+  id:'curry', name:'Hähnchen-Curry', emoji:'🍛', cat:'Pfanne', minutes:35, level:'Mittel',
+  base:4, diet:'fleisch', tags:['Familie','Meal Prep'],
+  desc:'Cremiges Curry mit Kokosmilch. Das Hähnchen kommt spät dazu, damit es saftig bleibt.',
+  ings:[
+    {q:600,u:'g',n:'Hähnchenbrust',note:'in mundgerechten Stücken'},
+    {q:2,u:'EL',n:'rote Currypaste'},
+    {q:1,u:'',n:'Zwiebel',note:'in Streifen'},
+    {q:2,u:'Zehen',n:'Knoblauch',note:'gehackt'},
+    {q:1,u:'',n:'Paprika',note:'in Streifen'},
+    {q:200,u:'g',n:'Zuckerschoten',note:'oder Brokkoliröschen'},
+    {q:400,u:'ml',n:'Kokosmilch'},
+    {q:1,u:'EL',n:'Fischsauce',note:'oder Sojasauce'},
+    {q:1,u:'TL',n:'brauner Zucker'},
+    {q:1,u:'',n:'Limette',note:'Saft davon'},
+    {q:2,u:'EL',n:'Öl',fix:true},
+    {q:250,u:'g',n:'Reis',note:'als Beilage'}
+  ],
+  steps:[
+    {t:'Reis nach Packungsanweisung aufsetzen.'},
+    {t:'Öl in einer weiten Pfanne stark erhitzen. Hähnchen portionsweise scharf anbraten, bis es außen Farbe hat, dann herausnehmen. Nicht durchgaren.',timer:5},
+    {t:'Hitze reduzieren, Zwiebel und Knoblauch anbraten, Currypaste dazugeben und 1 Minute im Fett rösten.'},
+    {t:'Mit Kokosmilch ablöschen, Fischsauce und Zucker einrühren und 5 Minuten leise köcheln lassen.',timer:5},
+    {t:'Paprika und Zuckerschoten zugeben, 4 Minuten garen – sie sollen Biss behalten.',timer:4},
+    {t:'Hähnchen mit dem ausgetretenen Saft zurück in die Pfanne, 3 Minuten fertig garen.',timer:3},
+    {t:'Vom Herd nehmen, Limettensaft einrühren, abschmecken und mit Reis servieren.'}
+  ],
+  tips:['Currypaste im Fett anrösten statt in Flüssigkeit einrühren – die Aromen sind fettlöslich und entfalten sich erst dann.']
+},
+{
+  id:'tomatensauce', name:'Tomatensauce, Grundrezept', emoji:'🍅', cat:'Grundrezept', minutes:40, level:'Einfach',
+  base:4, diet:'vegan', tags:['Grundrezept','Vorratskammer','Einfrieren'],
+  desc:'Die Basis für Pasta, Pizza, Auflauf und Schichtgerichte. Drei Zutaten, viel Zeit, kein Stress.',
+  ings:[
+    {q:2,u:'Dosen',n:'ganze Tomaten',note:'je 400 g, San Marzano wenn möglich'},
+    {q:1,u:'',n:'Zwiebel',note:'halbiert, nicht gehackt'},
+    {q:3,u:'Zehen',n:'Knoblauch',note:'leicht angedrückt'},
+    {q:60,u:'g',n:'Butter',note:'oder 4 EL Olivenöl'},
+    {q:1,u:'Prise',n:'Zucker',fix:true},
+    {q:1,u:'Handvoll',n:'Basilikum',note:'erst am Ende'}
+  ],
+  steps:[
+    {t:'Tomaten mit den Händen in einem Topf zerdrücken oder grob mit der Schere zerteilen.'},
+    {t:'Butter, Zwiebelhälften und Knoblauch dazugeben, salzen und aufkochen.'},
+    {t:'Bei kleiner Hitze 35 Minuten offen köcheln lassen, gelegentlich umrühren. Die Sauce ist fertig, wenn sich das Fett rot am Rand absetzt.',timer:35},
+    {t:'Zwiebel und Knoblauch herausnehmen. Mit Salz und einer Prise Zucker abschmecken, Basilikum einreißen.'}
+  ],
+  tips:['Die doppelte Menge kochen und portionsweise einfrieren. Aufgetaut ist sie in fünf Minuten ein Abendessen.']
+},
+{
+  id:'pfannkuchen', name:'Pfannkuchen', emoji:'🥞', cat:'Süßes', minutes:25, level:'Einfach',
+  base:4, diet:'veg', tags:['Familie','Kinder','Süßes'],
+  desc:'Ein Teig, süß oder herzhaft. Die Ruhezeit ist der einzige Schritt, den man nicht überspringen sollte.',
+  ings:[
+    {q:250,u:'g',n:'Mehl',note:'Type 405'},
+    {q:500,u:'ml',n:'Milch'},
+    {q:4,u:'',n:'Eier'},
+    {q:1,u:'Prise',n:'Salz',fix:true},
+    {q:1,u:'EL',n:'Zucker'},
+    {q:30,u:'g',n:'Butter',note:'zum Ausbacken',fix:true}
+  ],
+  steps:[
+    {t:'Mehl, Salz und Zucker in einer Schüssel mischen. Eier und die Hälfte der Milch dazugeben und glattrühren – erst dann die restliche Milch einrühren. So gibt es keine Klumpen.'},
+    {t:'Teig 20 Minuten ruhen lassen. Das Mehl saugt die Flüssigkeit auf und der Pfannkuchen wird zarter.',timer:20},
+    {t:'Etwas Butter in einer beschichteten Pfanne bei mittlerer Hitze schmelzen. Eine kleine Kelle Teig hineingeben und durch Schwenken dünn verteilen.'},
+    {t:'2 Minuten backen, bis der Rand sich löst und die Oberseite matt ist, dann wenden und 1 Minute fertig backen.',timer:2},
+    {t:'Fertige Pfannkuchen auf einem Teller im Ofen bei 60 °C warm halten.'}
+  ],
+  tips:['Ist der erste Pfannkuchen misslungen, ist das normal – er kalibriert die Pfannentemperatur. Ab dem zweiten passt es.']
+},
+{
+  id:'risotto', name:'Risotto, Grundrezept', emoji:'🍚', cat:'Grundrezept', minutes:35, level:'Mittel',
+  base:3, diet:'veg', tags:['Grundrezept','Technik'],
+  desc:'Risotto braucht keine Zauberei, aber Aufmerksamkeit: heiße Brühe, ständiges Rühren, und am Ende kalte Butter.',
+  ings:[
+    {q:300,u:'g',n:'Risottoreis',note:'Arborio oder Carnaroli'},
+    {q:1,u:'',n:'Schalotte',note:'sehr fein gewürfelt'},
+    {q:150,u:'ml',n:'Weißwein',note:'trocken'},
+    {q:1,u:'l',n:'Gemüsebrühe',note:'heiß gehalten'},
+    {q:60,u:'g',n:'Butter',note:'kalt, gewürfelt'},
+    {q:60,u:'g',n:'Parmesan',note:'frisch gerieben'},
+    {q:2,u:'EL',n:'Olivenöl',fix:true}
+  ],
+  steps:[
+    {t:'Brühe in einem Topf heiß halten – kalte Brühe stoppt den Garprozess jedes Mal.'},
+    {t:'Olivenöl erhitzen, Schalotte glasig dünsten, ohne Farbe zu nehmen.',timer:4},
+    {t:'Reis dazugeben und 2 Minuten rühren, bis die Körner glasig sind und leicht knistern.',timer:2},
+    {t:'Mit Wein ablöschen und rühren, bis er fast vollständig eingekocht ist.'},
+    {t:'Eine Kelle heiße Brühe zugeben, rühren, bis sie aufgesogen ist – dann die nächste. So etwa 18 Minuten weiter.',timer:18},
+    {t:'Wenn der Reis außen weich und innen noch minimal fest ist: Topf vom Herd, kalte Butter und Parmesan kräftig einrühren. Zugedeckt 2 Minuten ruhen lassen.',timer:2},
+    {t:'Abschmecken. Das Risotto soll auf dem Teller leicht fließen, nicht stehen.'}
+  ],
+  tips:['Der letzte Schritt heißt „mantecare“: kalte Butter außerhalb der Hitze einrühren. Das macht die Bindung cremig statt fettig.']
+},
+{
+  id:'kartoffelsalat', name:'Kartoffelsalat mit Brühe', emoji:'🥔', cat:'Salat', minutes:40, level:'Einfach',
+  base:4, diet:'vegan', tags:['Beilage','Klassiker','Vorbereiten'],
+  desc:'Die süddeutsche Variante ohne Mayonnaise: warme Kartoffeln saugen die Brühe auf und werden dadurch würzig bis in die Mitte.',
+  ings:[
+    {q:1,u:'kg',n:'Kartoffeln',note:'festkochend'},
+    {q:250,u:'ml',n:'Gemüsebrühe',note:'heiß'},
+    {q:1,u:'',n:'Zwiebel',note:'sehr fein gewürfelt'},
+    {q:3,u:'EL',n:'Weißweinessig'},
+    {q:1,u:'TL',n:'mittelscharfer Senf'},
+    {q:4,u:'EL',n:'Sonnenblumenöl'},
+    {q:1,u:'Bund',n:'Schnittlauch'}
+  ],
+  steps:[
+    {t:'Kartoffeln mit Schale in Salzwasser garen, bis ein Messer ohne Widerstand hineingleitet – etwa 25 Minuten je nach Größe.',timer:25},
+    {t:'Kartoffeln abgießen, kurz ausdampfen lassen und noch heiß pellen. Heiß saugen sie die Marinade auf, kalt nicht mehr.'},
+    {t:'In Scheiben schneiden und in eine Schüssel schichten.'},
+    {t:'Heiße Brühe mit Zwiebel, Essig, Senf, Salz und Pfeffer verrühren und über die warmen Kartoffeln gießen.'},
+    {t:'Vorsichtig mischen und 20 Minuten ziehen lassen, dann Öl und Schnittlauch unterheben.',timer:20},
+    {t:'Vor dem Servieren nochmals abschmecken – Kartoffeln schlucken erstaunlich viel Salz.'}
+  ],
+  tips:['Salat lauwarm servieren. Direkt aus dem Kühlschrank schmeckt er halb so intensiv, weil Kälte Aromen dämpft.']
+},
+{
+  id:'chili', name:'Chili sin Carne', emoji:'🌶️', cat:'Eintopf', minutes:50, level:'Einfach',
+  base:5, diet:'vegan', tags:['Meal Prep','Gäste','Eintopf'],
+  desc:'Sättigend, würzig und am zweiten Tag noch besser. Kakao und Zimt klingen seltsam, geben aber Tiefe.',
+  ings:[
+    {q:2,u:'',n:'Zwiebeln',note:'gewürfelt'},
+    {q:3,u:'Zehen',n:'Knoblauch'},
+    {q:2,u:'',n:'Paprika',note:'gewürfelt'},
+    {q:1,u:'Dose',n:'Kidneybohnen',note:'400 g, abgespült'},
+    {q:1,u:'Dose',n:'schwarze Bohnen',note:'400 g, abgespült'},
+    {q:1,u:'Dose',n:'Mais',note:'300 g'},
+    {q:2,u:'Dosen',n:'gehackte Tomaten',note:'je 400 g'},
+    {q:150,u:'g',n:'Sojaschnetzel',note:'oder 200 g Walnüsse, grob gehackt'},
+    {q:2,u:'TL',n:'Kreuzkümmel'},
+    {q:2,u:'TL',n:'geräuchertes Paprikapulver'},
+    {q:1,u:'TL',n:'Kakaopulver'},
+    {q:1,u:'Prise',n:'Zimt',fix:true},
+    {q:2,u:'EL',n:'Öl',fix:true}
+  ],
+  steps:[
+    {t:'Öl erhitzen, Zwiebeln 6 Minuten braten, bis sie deutlich Farbe nehmen. Diese Bräunung ist die Geschmacksgrundlage.',timer:6},
+    {t:'Knoblauch und Paprika zugeben, 3 Minuten mitbraten.'},
+    {t:'Gewürze, Kakao und Zimt einstreuen und 1 Minute rösten.'},
+    {t:'Tomaten, Sojaschnetzel und 200 ml Wasser zugeben, aufkochen, dann 25 Minuten leise köcheln.',timer:25},
+    {t:'Bohnen und Mais unterrühren und weitere 10 Minuten ziehen lassen.',timer:10},
+    {t:'Kräftig abschmecken: Salz, Pfeffer, etwas Essig oder Limette. Mit Reis, Brot oder Ofenkartoffel servieren.'}
+  ],
+  tips:['Über Nacht im Kühlschrank verbinden sich die Aromen. Chili ist eines der wenigen Gerichte, die aufgewärmt besser sind.']
+},
+{
+  id:'steak', name:'Steak richtig braten', emoji:'🥩', cat:'Technik', minutes:25, level:'Mittel',
+  base:2, diet:'fleisch', tags:['Technik','Gäste'],
+  desc:'Kein Rezept, sondern eine Methode. Wer diese vier Regeln einhält, braucht nie wieder ein zähes Steak zu essen.',
+  ings:[
+    {q:2,u:'',n:'Rumpsteaks',note:'je ca. 250 g, mindestens 3 cm dick'},
+    {q:2,u:'EL',n:'hoch erhitzbares Öl',note:'Raps oder Sonnenblume',fix:true},
+    {q:30,u:'g',n:'Butter'},
+    {q:2,u:'Zweige',n:'Thymian'},
+    {q:2,u:'Zehen',n:'Knoblauch',note:'angedrückt'},
+    {q:1,u:'Prise',n:'grobes Salz',fix:true}
+  ],
+  steps:[
+    {t:'Steaks 45 Minuten vor dem Braten aus dem Kühlschrank nehmen und trocken tupfen. Zimmerwarmes, trockenes Fleisch bräunt gleichmäßig.'},
+    {t:'Pfanne aus Edelstahl oder Guss stark erhitzen, bis das Öl beim Einlaufen sofort schlieren zieht.'},
+    {t:'Steaks einlegen und 2–3 Minuten nicht bewegen. Erst wenn sich die Kruste gebildet hat, lösen sie sich von selbst.',timer:3},
+    {t:'Wenden, Butter, Thymian und Knoblauch zugeben und das Fleisch 1–2 Minuten mit der schäumenden Butter übergießen (arrosieren).',timer:2},
+    {t:'Kerntemperatur prüfen: 52 °C medium rare, 56 °C medium, 62 °C durch.'},
+    {t:'Steaks auf ein Brett legen und 5 Minuten ruhen lassen. Erst danach salzen und quer zur Faser aufschneiden.',timer:5}
+  ],
+  tips:['Ruhen lassen ist kein Luxus: Ohne Ruhezeit läuft der Fleischsaft beim Anschneiden aufs Brett statt im Steak zu bleiben.']
+},
+{
+  id:'brot', name:'Brot ohne Kneten', emoji:'🍞', cat:'Backen', minutes:75, level:'Mittel',
+  base:1, diet:'vegan', tags:['Backen','Über Nacht','4 Zutaten'],
+  desc:'Zwölf Stunden Wartezeit, fünf Minuten Arbeit. Die Zeit übernimmt, was sonst die Knetmaschine tut.',
+  ings:[
+    {q:500,u:'g',n:'Weizenmehl',note:'Type 550'},
+    {q:400,u:'ml',n:'Wasser',note:'lauwarm'},
+    {q:2,u:'g',n:'Trockenhefe',note:'etwa ½ TL'},
+    {q:12,u:'g',n:'Salz'}
+  ],
+  steps:[
+    {t:'Alle Zutaten in einer Schüssel mit einem Löffel zu einem klebrigen, zottigen Teig verrühren. Nicht kneten.'},
+    {t:'Zugedeckt 12–16 Stunden bei Zimmertemperatur gehen lassen. Der Teig ist fertig, wenn er Blasen wirft und sich verdoppelt hat.'},
+    {t:'Teig auf eine gut bemehlte Fläche geben, von allen vier Seiten zur Mitte falten und zu einer Kugel formen. 30 Minuten ruhen lassen.',timer:30},
+    {t:'Gusseisentopf mit Deckel im Ofen auf 250 °C aufheizen – mindestens 30 Minuten, der Topf muss richtig heiß sein.',timer:30},
+    {t:'Teig in den heißen Topf setzen, Deckel drauf, 30 Minuten backen.',timer:30},
+    {t:'Deckel abnehmen und weitere 15 Minuten backen, bis die Kruste dunkelbraun ist.',timer:15},
+    {t:'Auf einem Gitter vollständig auskühlen lassen – warm angeschnitten wird die Krume klitschig.'}
+  ],
+  tips:['Der geschlossene Topf hält den Dampf im Brot. Genau das macht in Profiöfen der Schwadenknopf.']
+},
+{
+  id:'schokokuchen', name:'Schokoladenkuchen', emoji:'🍫', cat:'Backen', minutes:55, level:'Einfach',
+  base:12, diet:'veg', tags:['Backen','Kuchen','Gäste'],
+  desc:'Saftig, ohne Schnickschnack, in einer Schüssel gerührt. Heißer Kaffee im Teig verstärkt den Kakao, ohne zu schmecken.',
+  ings:[
+    {q:200,u:'g',n:'Mehl'},
+    {q:250,u:'g',n:'Zucker'},
+    {q:60,u:'g',n:'Backkakao'},
+    {q:1,u:'TL',n:'Natron'},
+    {q:1,u:'TL',n:'Backpulver'},
+    {q:2,u:'',n:'Eier'},
+    {q:180,u:'ml',n:'Buttermilch'},
+    {q:120,u:'ml',n:'neutrales Öl'},
+    {q:150,u:'ml',n:'heißer Kaffee',note:'oder heißes Wasser'},
+    {q:1,u:'Prise',n:'Salz',fix:true}
+  ],
+  steps:[
+    {t:'Ofen auf 175 °C Ober-/Unterhitze vorheizen, eine 24-cm-Springform fetten und mit Backpapier auslegen.'},
+    {t:'Alle trockenen Zutaten in einer großen Schüssel verrühren und Klumpen aus dem Kakao zerdrücken.'},
+    {t:'Eier, Buttermilch und Öl zugeben und nur so lange rühren, bis kein Mehl mehr sichtbar ist. Zu langes Rühren macht den Kuchen zäh.'},
+    {t:'Heißen Kaffee unterrühren – der Teig wird sehr flüssig, das ist richtig so.'},
+    {t:'In die Form gießen und 35–40 Minuten backen.',timer:38},
+    {t:'Stäbchenprobe: Es soll mit feuchten Krümeln herauskommen, nicht sauber. In der Form 15 Minuten abkühlen lassen, dann stürzen.',timer:15}
+  ],
+  tips:['Natron braucht eine Säure zum Reagieren – hier die Buttermilch. Beides gegen etwas anderes zu tauschen kippt das Triebmittel.']
+},
+{
+  id:'reispfanne', name:'Gebratener Reis (Resteverwertung)', emoji:'🍱', cat:'Pfanne', minutes:15, level:'Einfach',
+  base:2, diet:'veg', tags:['Reste','Feierabend','15 Minuten'],
+  desc:'Das beste Rezept für übrig gebliebenen Reis vom Vortag. Frischer Reis funktioniert hier nicht.',
+  ings:[
+    {q:400,u:'g',n:'gekochter Reis',note:'vom Vortag, kalt'},
+    {q:2,u:'',n:'Eier',note:'verquirlt'},
+    {q:1,u:'',n:'Karotte',note:'fein gewürfelt'},
+    {q:100,u:'g',n:'Erbsen',note:'tiefgekühlt'},
+    {q:2,u:'',n:'Frühlingszwiebeln',note:'in Ringen'},
+    {q:2,u:'Zehen',n:'Knoblauch',note:'gehackt'},
+    {q:2,u:'EL',n:'Sojasauce'},
+    {q:1,u:'TL',n:'Sesamöl'},
+    {q:2,u:'EL',n:'neutrales Öl',fix:true}
+  ],
+  steps:[
+    {t:'Reis mit den Fingern auflockern, damit keine Klumpen bleiben.'},
+    {t:'Öl in einer weiten Pfanne stark erhitzen. Ei hineingeben, stocken lassen, grob zerteilen und herausnehmen.'},
+    {t:'Karotte 2 Minuten braten, Knoblauch und Erbsen dazugeben.',timer:2},
+    {t:'Reis zugeben, flach drücken und 1 Minute liegen lassen, bevor du umrührst – so entstehen geröstete Stellen.',timer:1},
+    {t:'Ei zurück in die Pfanne, mit Sojasauce und Sesamöl abschmecken, Frühlingszwiebeln unterheben und sofort servieren.'}
+  ],
+  tips:['Kalter Reis ist trockener und fällt in Körner auseinander. Frisch gekochter Reis dämpft in der Pfanne und wird matschig.']
+},
+{
+  id:'griechischer', name:'Griechischer Salat', emoji:'🥗', cat:'Salat', minutes:15, level:'Einfach',
+  base:3, diet:'veg', tags:['Sommer','Ohne Kochen','15 Minuten'],
+  desc:'Kein Blattsalat, kein Dressing aus der Flasche. Gutes Olivenöl und reife Tomaten machen die ganze Arbeit.',
+  ings:[
+    {q:500,u:'g',n:'Tomaten',note:'reif, in groben Stücken'},
+    {q:1,u:'',n:'Salatgurke',note:'geschält, in dicken Halbmonden'},
+    {q:1,u:'',n:'rote Zwiebel',note:'in feinen Ringen'},
+    {q:200,u:'g',n:'Feta',note:'am Stück'},
+    {q:80,u:'g',n:'Kalamata-Oliven'},
+    {q:5,u:'EL',n:'Olivenöl',note:'gutes, fruchtiges'},
+    {q:1,u:'TL',n:'getrockneter Oregano'},
+    {q:1,u:'EL',n:'Rotweinessig'}
+  ],
+  steps:[
+    {t:'Zwiebelringe 10 Minuten in kaltem Wasser einweichen – das nimmt ihnen die Schärfe.',timer:10},
+    {t:'Tomaten und Gurke in eine Schüssel geben, salzen und 5 Minuten stehen lassen.',timer:5},
+    {t:'Abgetropfte Zwiebeln und Oliven untermischen, mit Essig und Olivenöl beträufeln.'},
+    {t:'Feta im Ganzen obenauf legen, mit Oregano bestreuen und mit etwas Öl beträufeln. Erst am Tisch zerteilen.'}
+  ],
+  tips:['Tomaten nie im Kühlschrank lagern. Unter 12 °C bauen sie ihre Aromastoffe ab und kommen nicht zurück.']
+}
+];
+
+/* ==========================================================================
+   DATEN – Küchentipps
+   ========================================================================== */
+const TIPS = [
+{cat:'Technik', t:'Die Pfanne muss heiß sein, bevor das Fett hineinkommt',
+ b:'Öl in einer kalten Pfanne zieht sich in die Poren des Materials und beginnt zu verharzen. Erst die leere Pfanne erhitzen, dann Fett zugeben, dann das Gargut – so klebt kaum etwas an.'},
+{cat:'Technik', t:'Fleisch nicht bewegen, solange es klebt',
+ b:'Ein Stück Fleisch löst sich von selbst von der Pfanne, sobald die Kruste fertig ist. Wer vorher schiebt und wendet, reißt die Kruste ab.'},
+{cat:'Technik', t:'Der Pfanne Platz lassen',
+ b:'Zu viel auf einmal senkt die Temperatur, es tritt Wasser aus und das Gargut dünstet statt zu braten. Lieber in zwei Durchgängen anbraten.'},
+{cat:'Würzen', t:'Salz in Schichten, nicht am Ende',
+ b:'Wer während des Kochens mehrmals leicht salzt, würzt jede Zutat von innen. Alles Salz zum Schluss legt sich nur oben drauf und schmeckt schärfer.'},
+{cat:'Würzen', t:'Säure ist der häufigste fehlende Baustein',
+ b:'Wenn ein Gericht „irgendwie flach“ schmeckt, fehlt meistens nicht Salz, sondern Säure. Ein Spritzer Zitrone oder Essig macht Suppen, Eintöpfe und Saucen sofort lebendiger.'},
+{cat:'Würzen', t:'Getrocknete Gewürze früh, frische Kräuter spät',
+ b:'Getrocknete Gewürze brauchen Hitze und Fett, um ihr Aroma abzugeben. Frische Kräuter verlieren es dabei – die kommen erst nach dem Herd dazu.'},
+{cat:'Würzen', t:'Fett trägt Geschmack',
+ b:'Viele Aromastoffe sind fettlöslich, nicht wasserlöslich. Gewürze kurz im Öl anrösten statt in Wasser oder Brühe einzurühren.'},
+{cat:'Messer', t:'Ein stumpfes Messer ist gefährlicher als ein scharfes',
+ b:'Stumpfe Klingen rutschen ab, statt zu schneiden. Wer ein Messer regelmäßig am Wetzstahl abzieht, arbeitet sicherer und schneller.'},
+{cat:'Messer', t:'Die Krallenhaltung',
+ b:'Fingerkuppen der Halte-Hand einziehen, Fingerknöchel führen die Klingenseite. Das Messer kann dann gar nicht in die Finger geraten.'},
+{cat:'Messer', t:'Ein feuchtes Tuch unter das Brett',
+ b:'Ein rutschendes Schneidbrett ist eine der häufigsten Ursachen für Schnittverletzungen. Ein angefeuchtetes Küchentuch darunter fixiert es sofort.'},
+{cat:'Nudeln', t:'Salzen wie Meerwasser',
+ b:'Etwa 10 g Salz auf 1 Liter Wasser. Es ist der einzige Moment, in dem die Nudel selbst gewürzt wird – später nimmt sie kein Salz mehr auf.'},
+{cat:'Nudeln', t:'Kein Öl ins Nudelwasser',
+ b:'Öl schwimmt oben und verhindert nichts. Schlimmer noch: Es legt sich beim Abgießen um die Nudeln, und die Sauce hält dann nicht mehr.'},
+{cat:'Nudeln', t:'Immer eine Tasse Nudelwasser aufheben',
+ b:'Die gelöste Stärke bindet Fett und Wasser zu einer Sauce, die an der Pasta haftet. Ohne sie bleibt selbst eine gute Sauce im Teller zurück.'},
+{cat:'Vorrat', t:'Kartoffeln und Zwiebeln getrennt lagern',
+ b:'Zwiebeln geben Feuchtigkeit und Gase ab, die Kartoffeln schneller keimen lassen. Beide dunkel, kühl und luftig, aber nicht nebeneinander.'},
+{cat:'Vorrat', t:'Tomaten, Basilikum und Brot gehören nicht in den Kühlschrank',
+ b:'Tomaten verlieren unter 12 °C ihr Aroma, Basilikum bekommt schwarze Blätter, und Brot wird im Kühlschrank schneller altbacken als bei Zimmertemperatur.'},
+{cat:'Vorrat', t:'Kräuter wie einen Blumenstrauß behandeln',
+ b:'Petersilie, Koriander und Minze halten sich über eine Woche, wenn man die Stiele anschneidet und sie in ein Glas Wasser stellt, locker mit einer Tüte abgedeckt.'},
+{cat:'Backen', t:'Zutaten auf Zimmertemperatur bringen',
+ b:'Kalte Eier und kalte Butter verbinden sich nicht zu einer stabilen Emulsion – der Teig gerinnt und wird nach dem Backen dicht.'},
+{cat:'Backen', t:'Rührteig nur bis zur Vermischung rühren',
+ b:'Jede zusätzliche Umdrehung baut mehr Gluten auf. Bei Kuchen und Muffins bedeutet das zäh statt locker. Ein paar Mehlspuren dürfen bleiben.'},
+{cat:'Backen', t:'Mehl wiegen, nicht in Tassen messen',
+ b:'Je nachdem, wie fest man schöpft, passen 120 bis 160 g Mehl in dieselbe Tasse. Beim Backen entscheidet dieser Unterschied über das Ergebnis.'},
+{cat:'Reste', t:'Gemüsereste einfrieren statt wegwerfen',
+ b:'Schalen, Strünke und Zwiebelenden in eine Tüte im Gefrierfach sammeln. Wenn sie voll ist: mit Wasser aufsetzen, 45 Minuten köcheln – fertig ist die Brühe.'},
+{cat:'Reste', t:'Kräuter in Öl einfrieren',
+ b:'Übrige Kräuter fein hacken, in Eiswürfelform mit Olivenöl auffüllen und einfrieren. Ein Würfel geht direkt in die heiße Pfanne.'},
+{cat:'Reste', t:'Altes Brot ist keine Ausschussware',
+ b:'Aus zwei Tage altem Brot werden Croutons, Semmelknödel, Brotsalat oder Semmelbrösel. Frisches Brot eignet sich dafür sogar schlechter.'},
+{cat:'Sicherheit', t:'Heißes Öl niemals mit Wasser löschen',
+ b:'Wasser verdampft schlagartig und schleudert brennendes Fett durch den Raum. Deckel drauf, Herd aus – das erstickt die Flamme.'},
+{cat:'Sicherheit', t:'Rohes Geflügel nicht waschen',
+ b:'Das Wasser verteilt Keime im Spülbecken und in der Umgebung. Gegart werden sie ohnehin abgetötet – waschen erhöht nur das Risiko.'},
+{cat:'Sicherheit', t:'Zwei Stunden sind die Grenze',
+ b:'Gekochtes sollte nicht länger als zwei Stunden bei Zimmertemperatur stehen. Reste flach abkühlen lassen und zügig kalt stellen.'},
+{cat:'Planung', t:'Mise en place vor dem Einschalten',
+ b:'Alles schneiden, abwiegen und bereitstellen, bevor die erste Pfanne heiß wird. Kein Gericht wartet, während man noch Knoblauch sucht.'},
+{cat:'Planung', t:'Beim Kochen abwaschen',
+ b:'Während etwas köchelt oder im Ofen ist, entsteht die Zeit für die Hälfte des Abwaschs. Danach fühlt sich Kochen nur halb so aufwendig an.'},
+{cat:'Planung', t:'Ein Gericht doppelt kochen',
+ b:'Suppen, Eintöpfe und Saucen kosten in doppelter Menge kaum mehr Arbeit. Die zweite Hälfte ist ein fertiges Abendessen für eine Woche später.'}
+];
+
+/* ==========================================================================
+   DATEN – Lernkurse (Lektionen + Quiz)
+   ========================================================================== */
+const COURSES = [
+{
+  id:'messer', name:'Messer & Schneiden', ic:'🔪',
+  desc:'Sicher, schnell und gleichmäßig schneiden – die Grundlage jeder Küchenarbeit.',
+  lessons:[
+    {id:'m1', title:'Griff und Haltung', mins:4, html:`
+      <p>Fast alle Anfänger halten das Messer zu weit hinten am Griff. Dadurch fehlt die Kontrolle über die Klingenspitze.</p>
+      <h4>Der Zangengriff</h4>
+      <ul>
+        <li>Daumen und Zeigefinger greifen die <b>Klinge</b> direkt vor dem Griff.</li>
+        <li>Die restlichen drei Finger umfassen den Griff.</li>
+        <li>Das Handgelenk bleibt locker, die Bewegung kommt aus dem Arm.</li>
+      </ul>
+      <h4>Die Krallenhaltung der anderen Hand</h4>
+      <p>Die Fingerkuppen der Halte-Hand werden eingezogen, sodass die <b>Fingerknöchel</b> vorstehen. Die flache Klingenseite liegt an den Knöcheln an und gleitet an ihnen entlang. So kann das Messer die Fingerkuppen konstruktiv gar nicht erreichen.</p>
+      <h4>Die Schnittbewegung</h4>
+      <p>Ein Kochmesser schneidet nicht durch Druck von oben, sondern durch eine <b>Zieh- oder Schiebebewegung</b>. Die Spitze bleibt dabei möglichst am Brett und die Klinge wippt darüber.</p>`},
+    {id:'m2', title:'Schärfe und Pflege', mins:3, html:`
+      <p>Ein Messer wird nicht plötzlich stumpf, sondern verliert schleichend seinen Grat – die feine Schneidkante verbiegt sich zur Seite.</p>
+      <h4>Wetzstahl ≠ Schleifstein</h4>
+      <ul>
+        <li>Der <b>Wetzstahl</b> richtet die verbogene Kante wieder auf. Alle paar Anwendungen, dauert 20 Sekunden.</li>
+        <li>Der <b>Schleifstein</b> trägt Material ab und erzeugt eine neue Kante. Ein- bis zweimal im Jahr.</li>
+      </ul>
+      <h4>Was Messer ruiniert</h4>
+      <ul>
+        <li>Die Spülmaschine: Hitze, Lauge und Kontakt mit anderem Besteck.</li>
+        <li>Glas-, Stein- oder Keramikbretter – sie sind härter als der Stahl.</li>
+        <li>Das Messer lose in der Schublade lagern statt im Block oder an der Leiste.</li>
+      </ul>
+      <p>Der Papiertest: Ein scharfes Messer schneidet ein hängendes Blatt Papier sauber durch, ohne zu reißen.</p>`},
+    {id:'m3', title:'Die Grundschnitte', mins:4, html:`
+      <p>Gleichmäßige Stücke garen gleichmäßig. Das ist der ganze Grund, warum Schnittarten Namen haben.</p>
+      <h4>Die wichtigsten vier</h4>
+      <ul>
+        <li><b>Würfel (Brunoise / Mirepoix)</b> – fein für Saucen, grob für Suppen und Schmorgerichte.</li>
+        <li><b>Julienne</b> – dünne Stifte, garen sehr schnell, gut für Pfannengerichte.</li>
+        <li><b>Streifen (Chiffonade)</b> – Blätter aufeinanderlegen, aufrollen, quer schneiden. Für Kräuter und Blattgemüse.</li>
+        <li><b>Scheiben</b> – gleichmäßige Dicke ist wichtiger als geringe Dicke.</li>
+      </ul>
+      <h4>Zwiebel schneiden ohne Tränen</h4>
+      <p>Erst längs halbieren, die Wurzel dranlassen und zum Schluss durchtrennen: Dort sitzen die meisten schwefelhaltigen Verbindungen. Ein scharfes Messer zerstört weniger Zellen und setzt entsprechend weniger davon frei.</p>`}
+  ],
+  quiz:[
+    {q:'Wo greift die Hand beim Zangengriff das Messer?', opts:['Ganz hinten am Griffende','Mit Daumen und Zeigefinger an der Klinge vor dem Griff','Mit dem Zeigefinger auf dem Klingenrücken'], a:1,
+     fb:'Daumen und Zeigefinger greifen die Klinge selbst. Das gibt spürbar mehr Kontrolle über die Spitze als ein Griff weit hinten.'},
+    {q:'Was macht ein Wetzstahl?', opts:['Er trägt Material ab und schleift eine neue Kante','Er richtet die verbogene Schneidkante wieder auf','Er poliert die Klinge gegen Rost'], a:1,
+     fb:'Der Wetzstahl richtet den Grat auf. Neues Material trägt nur ein Schleifstein ab – und das braucht man ein- bis zweimal im Jahr.'},
+    {q:'Warum lässt man beim Zwiebelschneiden die Wurzel zunächst dran?', opts:['Sie hält die Schichten zusammen und enthält die meisten Reizstoffe','Sie schmeckt am intensivsten','Damit die Zwiebel länger haltbar ist'], a:0,
+     fb:'Die Wurzel hält die Zwiebel zusammen und setzt beim Durchschneiden am meisten Schwefelverbindungen frei – deshalb zuletzt.'},
+    {q:'Welches Schneidbrett schont die Klinge am meisten?', opts:['Glas','Keramik','Holz oder Kunststoff'], a:2,
+     fb:'Holz und Kunststoff geben leicht nach. Glas und Keramik sind härter als der Klingenstahl und machen ein Messer in wenigen Schnitten stumpf.'}
+  ]
+},
+{
+  id:'hitze', name:'Hitze & Bräunung', ic:'🔥',
+  desc:'Warum Röstaromen entstehen und wann Hitze dem Essen schadet.',
+  lessons:[
+    {id:'h1', title:'Die Maillard-Reaktion', mins:4, html:`
+      <p>Alles, was gebraten, geröstet oder gebacken braun wird, verdankt seinen Geschmack derselben Reaktion: Aminosäuren und Zucker verbinden sich bei Hitze zu hunderten neuen Aromastoffen.</p>
+      <h4>Zwei Bedingungen</h4>
+      <ul>
+        <li><b>Temperatur über ca. 140 °C.</b> Solange Wasser in der Pfanne ist, bleibt die Oberfläche bei 100 °C – dann passiert nichts.</li>
+        <li><b>Eine trockene Oberfläche.</b> Deshalb Fleisch und Gemüse vor dem Braten trocken tupfen.</li>
+      </ul>
+      <h4>Der häufigste Fehler</h4>
+      <p>Eine überfüllte Pfanne. Das austretende Wasser kann nicht schnell genug verdampfen, die Temperatur fällt, und aus Braten wird Dünsten – grau statt braun.</p>
+      <p><b>Karamellisierung</b> ist übrigens etwas anderes: Dort zerfällt reiner Zucker bei Hitze, ganz ohne Eiweiß.</p>`},
+    {id:'h2', title:'Die richtige Stufe wählen', mins:3, html:`
+      <h4>Vier Hitzestufen, vier Zwecke</h4>
+      <ul>
+        <li><b>Schwitzen (niedrig)</b> – Zwiebeln glasig, ohne Farbe. Baut Süße auf.</li>
+        <li><b>Sautieren (mittel-hoch)</b> – kleine Stücke in Bewegung, leichte Bräunung.</li>
+        <li><b>Scharf anbraten (hoch)</b> – Kruste auf Fleisch, kurze Zeit.</li>
+        <li><b>Schmoren (sehr niedrig)</b> – Flüssigkeit unter dem Siedepunkt, Stunden statt Minuten.</li>
+      </ul>
+      <h4>Köcheln ist nicht Kochen</h4>
+      <p>Sprudelnd kochende Flüssigkeit zerfasert Fleisch und trübt Brühen. Richtig ist ein „Blubbern“ von wenigen Blasen pro Sekunde, etwa 85–95 °C.</p>
+      <h4>Rauchpunkt beachten</h4>
+      <p>Natives Olivenöl und Butter verbrennen früh. Zum scharfen Anbraten Raps-, Sonnenblumen- oder Erdnussöl nehmen; Butter erst gegen Ende für den Geschmack dazugeben.</p>`},
+    {id:'h3', title:'Carry-over und Ruhezeit', mins:3, html:`
+      <p>Ein Stück Fleisch hört nicht auf zu garen, wenn es die Pfanne verlässt. Die Hitze aus den äußeren Schichten wandert weiter nach innen.</p>
+      <h4>Was das bedeutet</h4>
+      <ul>
+        <li>Steaks steigen beim Ruhen noch um 2–5 °C in der Kerntemperatur.</li>
+        <li>Deshalb immer <b>vor</b> Erreichen der Zieltemperatur vom Herd nehmen.</li>
+        <li>Rührei, Fisch und Nudeln folgen derselben Regel.</li>
+      </ul>
+      <h4>Warum ruhen lassen</h4>
+      <p>Beim Garen ziehen sich die Muskelfasern zusammen und pressen Saft nach außen. In der Ruhezeit entspannen sie sich und nehmen ihn wieder auf. Schneidet man zu früh an, landet dieser Saft auf dem Brett.</p>
+      <p>Faustregel: etwa 5 Minuten für ein Steak, 15–20 Minuten für einen Braten, locker mit Folie abgedeckt.</p>`}
+  ],
+  quiz:[
+    {q:'Ab welcher Temperatur beginnt die Maillard-Reaktion ungefähr?', opts:['Ab 100 °C','Ab etwa 140 °C','Ab 200 °C'], a:1,
+     fb:'Etwa ab 140 °C. Solange noch Wasser auf der Oberfläche ist, bleibt sie bei 100 °C – deshalb wird nasses Gargut nicht braun.'},
+    {q:'Warum wird Gemüse in einer zu vollen Pfanne grau statt braun?', opts:['Es tritt Wasser aus, die Temperatur fällt und es dämpft','Es fehlt Salz','Das Öl ist zu heiß'], a:0,
+     fb:'Genau: zu viel Gargut senkt die Temperatur, das Wasser kann nicht verdampfen und das Gemüse dünstet im eigenen Saft.'},
+    {q:'Welches Fett eignet sich zum scharfen Anbraten?', opts:['Natives Olivenöl extra','Butter','Rapsöl'], a:2,
+     fb:'Rapsöl hat einen hohen Rauchpunkt. Butter und natives Olivenöl verbrennen früh und werden bitter – Butter kommt besser erst am Ende dazu.'},
+    {q:'Was passiert beim Ruhenlassen von Fleisch?', opts:['Es kühlt aus und wird zäher','Die Fasern entspannen sich und nehmen Saft wieder auf','Die Kruste wird knuspriger'], a:1,
+     fb:'Die zusammengezogenen Fasern entspannen sich und binden den Saft wieder. Ohne Ruhezeit läuft er beim Anschneiden aufs Brett.'}
+  ]
+},
+{
+  id:'wuerzen', name:'Würzen & Abschmecken', ic:'🧂',
+  desc:'Die fünf Stellschrauben, mit denen sich fast jedes Gericht retten lässt.',
+  lessons:[
+    {id:'w1', title:'Salz ist Werkzeug, nicht Gewürz', mins:4, html:`
+      <p>Salz macht Essen nicht nur salziger. Es unterdrückt Bitterkeit, verstärkt Süße und lässt vorhandene Aromen überhaupt erst hervortreten.</p>
+      <h4>Wann salzen</h4>
+      <ul>
+        <li><b>Nudelwasser:</b> kräftig, ca. 10 g pro Liter – die einzige Chance, die Nudel selbst zu würzen.</li>
+        <li><b>Gemüse:</b> beim Anbraten, damit es Wasser zieht und schneller bräunt.</li>
+        <li><b>Steak:</b> entweder 40 Minuten vorher oder direkt danach – nie 5 Minuten vorher, dann liegt der Saft oben auf.</li>
+        <li><b>Rührei:</b> erst am Ende, sonst wird es wässrig.</li>
+      </ul>
+      <h4>Grobes und feines Salz</h4>
+      <p>Ein Teelöffel grobes Meersalz enthält deutlich weniger Salz als ein Teelöffel feines. Rezeptangaben sind deshalb immer nur ein Startwert – abschmecken ersetzt keine Waage.</p>`},
+    {id:'w2', title:'Die fünf Stellschrauben', mins:4, html:`
+      <p>Wenn ein Gericht „nicht fertig“ schmeckt, hilft dieser Reihe nach durchgehen:</p>
+      <h4>1. Salz</h4><p>Fast immer der erste Kandidat. In kleinen Schritten, jedes Mal probieren.</p>
+      <h4>2. Säure</h4><p>Zitrone, Essig, Joghurt, Tomate. Macht schwere und fette Gerichte leichter und weckt flache Suppen.</p>
+      <h4>3. Süße</h4><p>Eine Prise Zucker oder etwas Honig nimmt aggressiver Säure und Bitterstoffen die Spitze – z. B. bei Tomatensaucen.</p>
+      <h4>4. Fett</h4><p>Butter, Öl, Sahne oder Nüsse tragen Aromen und geben Fülle. Ein Löffel kalte Butter am Ende bindet und rundet ab.</p>
+      <h4>5. Umami</h4><p>Sojasauce, Parmesan, Tomatenmark, Pilze, Miso, Sardellen. Gibt Tiefe, ohne dass man die Zutat herausschmeckt.</p>
+      <p>Und zuletzt: <b>Textur</b>. Etwas Knuspriges oben drauf verändert ein Gericht oft mehr als jedes weitere Gewürz.</p>`},
+    {id:'w3', title:'Gewürze behandeln', mins:3, html:`
+      <h4>Ganz statt gemahlen</h4>
+      <p>Gemahlene Gewürze verlieren ihre ätherischen Öle innerhalb weniger Monate. Ganze Körner halten Jahre und werden erst beim Kochen gemörsert.</p>
+      <h4>Anrösten</h4>
+      <ul>
+        <li><b>Trocken:</b> ganze Gewürze in der Pfanne rösten, bis sie duften – etwa 30–60 Sekunden.</li>
+        <li><b>Im Fett:</b> gemahlene Gewürze kurz im heißen Öl ziehen lassen. Sie verbrennen schnell, deshalb danach sofort ablöschen.</li>
+      </ul>
+      <h4>Lagerung</h4>
+      <p>Dunkel, trocken, geschlossen und nicht über dem Herd – Hitze und Dampf sind die schnellsten Aromakiller. Und die Frage stellen: Riecht es beim Öffnen noch nach etwas? Wenn nicht, würzt es auch nicht mehr.</p>`}
+  ],
+  quiz:[
+    {q:'Ein Eintopf schmeckt fad, obwohl er ausreichend gesalzen ist. Was probierst du zuerst?', opts:['Mehr Salz','Etwas Säure, z. B. Essig oder Zitrone','Länger kochen'], a:1,
+     fb:'Säure ist der am häufigsten fehlende Baustein. Ein Spritzer Essig oder Zitrone hebt ein flaches Gericht sofort.'},
+    {q:'Wann sollte Rührei gesalzen werden?', opts:['Vor dem Verquirlen','Erst am Ende','Gar nicht'], a:1,
+     fb:'Salz entzieht dem Ei vorher Wasser und macht es wässrig. Deshalb erst am Ende salzen.'},
+    {q:'Wozu dient Umami beim Abschmecken?', opts:['Es gibt Tiefe und Fülle, ohne selbst herauszuschmecken','Es ersetzt Salz vollständig','Es macht Gerichte süßer'], a:0,
+     fb:'Umami – aus Sojasauce, Parmesan, Tomatenmark oder Pilzen – gibt Tiefe, ohne dass man die Quelle erkennt.'},
+    {q:'Wie behandelt man gemahlene Gewürze am besten?', opts:['In Wasser einrühren','Kurz im heißen Fett anrösten','Roh über das fertige Gericht streuen'], a:1,
+     fb:'Viele Aromastoffe sind fettlöslich. Kurz im Öl anrösten – aber aufpassen, gemahlene Gewürze verbrennen in Sekunden.'}
+  ]
+},
+{
+  id:'saucen', name:'Saucen & Bindung', ic:'🥄',
+  desc:'Vier Methoden, mit denen aus Flüssigkeit eine Sauce wird.',
+  lessons:[
+    {id:'s1', title:'Reduzieren und Emulgieren', mins:4, html:`
+      <h4>Reduktion</h4>
+      <p>Die einfachste Bindung: Flüssigkeit offen einkochen. Wasser verdampft, Geschmack und Gelatine bleiben zurück. Braucht keine Zutat, nur Zeit – und einen offenen Topf, denn mit Deckel passiert nichts.</p>
+      <h4>Emulsion</h4>
+      <p>Fett und Wasser mischen sich nicht von allein. Ein Emulgator hält sie zusammen: Eigelb (Mayonnaise, Hollandaise), Senf (Vinaigrette) oder Stärke (Pastasauce).</p>
+      <ul>
+        <li><b>Vinaigrette:</b> Essig, Salz und Senf verrühren, dann Öl langsam einlaufen lassen.</li>
+        <li><b>Pastasauce:</b> stärkehaltiges Nudelwasser + Fett + Bewegung in der Pfanne.</li>
+        <li><b>Butter montieren:</b> kalte Butterwürfel außerhalb der starken Hitze einrühren.</li>
+      </ul>
+      <p>Eine gebrochene Emulsion lässt sich oft retten: neues Eigelb oder einen Löffel warmes Wasser in eine saubere Schüssel geben und die gebrochene Sauce tropfenweise einrühren.</p>`},
+    {id:'s2', title:'Mehlschwitze und Stärke', mins:4, html:`
+      <h4>Mehlschwitze (Roux)</h4>
+      <p>Gleiche Teile Butter und Mehl, bei mittlerer Hitze verrührt. Je länger sie gart, desto nussiger der Geschmack und desto schwächer die Bindekraft.</p>
+      <ul>
+        <li><b>Hell</b> (2 Min.) – Béchamel, helle Saucen.</li>
+        <li><b>Blond</b> (5 Min.) – Velouté, Ragouts.</li>
+        <li><b>Braun</b> (10+ Min.) – dunkle Saucen, Gumbo.</li>
+      </ul>
+      <p><b>Gegen Klumpen:</b> heiße Flüssigkeit in die heiße Roux oder kalte in die kalte – gleiche Temperaturen sind der Trick. Und in kleinen Mengen zugeben, jedes Mal glattrühren.</p>
+      <h4>Stärke separat anrühren</h4>
+      <p>Speisestärke immer erst mit kaltem Wasser zu einer Aufschlämmung verrühren, dann in die kochende Flüssigkeit gießen. Direkt eingestreut verklumpt sie sofort.</p>
+      <p>Stärkebindung wird beim Abkühlen fester – lieber etwas dünner lassen als zu dick.</p>`}
+  ],
+  quiz:[
+    {q:'Was hält bei einer Vinaigrette Öl und Essig zusammen?', opts:['Der Senf als Emulgator','Das Salz','Die Temperatur'], a:0,
+     fb:'Senf ist der Emulgator. Er umhüllt die Öltröpfchen, sodass sie sich nicht wieder zusammenlagern.'},
+    {q:'Wie verhindert man Klumpen in einer Mehlschwitze?', opts:['Sehr schnell rühren','Gleiche Temperaturen: heiße Flüssigkeit in heiße Roux','Mehr Mehl zugeben'], a:1,
+     fb:'Temperaturangleichung ist der Schlüssel – heiß zu heiß oder kalt zu kalt, und in kleinen Mengen zugeben.'},
+    {q:'Wie wird Speisestärke richtig eingesetzt?', opts:['Direkt ins kochende Wasser streuen','Vorher mit kaltem Wasser anrühren','Mit Öl vermischen'], a:1,
+     fb:'Erst in kaltem Wasser anschlämmen, dann einrühren. Direkt eingestreut verklumpt sie sofort.'},
+    {q:'Was passiert, wenn du eine Sauce mit Deckel reduzieren willst?', opts:['Sie reduziert schneller','Sie reduziert praktisch gar nicht','Sie wird bitter'], a:1,
+     fb:'Der Deckel hält den Dampf im Topf – zum Reduzieren muss Wasser entweichen können.'}
+  ]
+},
+{
+  id:'teig', name:'Teig & Backen', ic:'🥐',
+  desc:'Warum Backen genauer ist als Kochen – und welche vier Faktoren wirklich zählen.',
+  lessons:[
+    {id:'t1', title:'Gluten verstehen', mins:4, html:`
+      <p>Mehl plus Wasser plus Bewegung ergibt Gluten – ein Netz aus Eiweißen, das Gas festhält und Teig elastisch macht. Ob das erwünscht ist, hängt vom Gebäck ab.</p>
+      <h4>Viel Gluten wollen wir bei</h4>
+      <ul><li>Brot, Pizza, Nudelteig – kneten, kneten, kneten.</li></ul>
+      <h4>Wenig Gluten wollen wir bei</h4>
+      <ul><li>Kuchen, Muffins, Mürbeteig, Pfannkuchen – nur bis zur Vermischung rühren.</li></ul>
+      <h4>Mehltypen</h4>
+      <p>Die Typenzahl gibt den Mineralstoffgehalt an, nicht die Backstärke: 405 fein und hell für Kuchen, 550 der Allrounder für Brot und Pizza, 1050 kräftiger und dunkler. Vollkorn bindet mehr Wasser – hier braucht der Teig deutlich mehr Flüssigkeit.</p>
+      <h4>Autolyse</h4>
+      <p>Mehl und Wasser 30 Minuten stehen lassen, bevor Salz und Hefe dazukommen. Das Gluten bildet sich von allein und der Teig lässt sich danach viel leichter verarbeiten.</p>`},
+    {id:'t2', title:'Triebmittel', mins:4, html:`
+      <h4>Hefe – biologisch</h4>
+      <p>Lebende Organismen, die Zucker zu CO₂ und Alkohol vergären. Braucht Zeit und Wärme. <b>Weniger Hefe plus mehr Zeit</b> ergibt immer mehr Geschmack als umgekehrt. Über 50 °C stirbt sie ab, im Kühlschrank arbeitet sie langsam weiter – das nutzt man für die kalte Gare über Nacht.</p>
+      <h4>Backpulver – chemisch, doppelt wirkend</h4>
+      <p>Enthält Natron plus eine trockene Säure. Reagiert einmal mit Feuchtigkeit und einmal mit Hitze. Deshalb kann man Rührteig kurz stehen lassen, ohne alles zu verlieren.</p>
+      <h4>Natron – chemisch, braucht Säure</h4>
+      <p>Reagiert nur mit einer sauren Zutat im Teig: Buttermilch, Joghurt, Essig, Zitrone, Kakao. Fehlt die Säure, bleibt der Teig flach und schmeckt seifig. Reagiert sofort – solche Teige kommen zügig in den Ofen.</p>
+      <h4>Mechanisch</h4>
+      <p>Aufgeschlagene Eier oder Sahne bringen Luft ein, etwa im Biskuit. Diese Luft wird beim Unterheben zerstört, wenn man rührt statt zu heben.</p>`},
+    {id:'t3', title:'Ofen und Temperatur', mins:3, html:`
+      <h4>Umluft oder Ober-/Unterhitze</h4>
+      <ul>
+        <li><b>Umluft</b> verteilt Hitze gleichmäßig, trocknet aber mehr. Gut für mehrere Bleche, Kekse, Ofengemüse. Etwa <b>20 °C weniger</b> ansetzen als bei Ober-/Unterhitze.</li>
+        <li><b>Ober-/Unterhitze</b> ist sanfter und feuchter. Besser für Kuchen, Brot, Aufläufe.</li>
+      </ul>
+      <h4>Vorheizen ist keine Formalität</h4>
+      <p>Backpulver und Hefe geben ihren Trieb in den ersten Minuten ab. Ein zu kalter Ofen verschenkt genau diesen Moment.</p>
+      <h4>Dein Ofen lügt</h4>
+      <p>Abweichungen von 20–30 °C sind normal. Ein Ofenthermometer für wenige Euro erklärt viele misslungene Kuchen. Und: Die Tür bleibt in der ersten Hälfte der Backzeit zu.</p>
+      <h4>Stäbchenprobe richtig lesen</h4>
+      <p>Bei Rührkuchen soll das Stäbchen mit <b>feuchten Krümeln</b> herauskommen, nicht blitzsauber – sonst ist der Kuchen bereits übergart und wird trocken.</p>`}
+  ],
+  quiz:[
+    {q:'Warum darf man Rührteig für Kuchen nicht lange rühren?', opts:['Die Butter schmilzt','Es bildet sich zu viel Gluten und der Kuchen wird zäh','Das Backpulver löst sich auf'], a:1,
+     fb:'Jede zusätzliche Umdrehung baut Gluten auf. Bei Kuchen bedeutet das zäh statt locker – nur bis zur Vermischung rühren.'},
+    {q:'Natron funktioniert nur, wenn im Teig …', opts:['… eine saure Zutat ist','… Zucker ist','… Hefe ist'], a:0,
+     fb:'Natron braucht eine Säure wie Buttermilch, Joghurt oder Kakao. Ohne sie bleibt der Teig flach und schmeckt seifig.'},
+    {q:'Ein Rezept nennt 200 °C Ober-/Unterhitze. Was stellst du bei Umluft ein?', opts:['220 °C','200 °C','180 °C'], a:2,
+     fb:'Bei Umluft etwa 20 °C weniger, weil die bewegte Luft die Hitze effektiver überträgt.'},
+    {q:'Wie soll das Stäbchen bei einem Rührkuchen aussehen?', opts:['Völlig sauber','Mit feuchten Krümeln','Mit flüssigem Teig'], a:1,
+     fb:'Feuchte Krümel sind richtig. Kommt es blitzsauber heraus, ist der Kuchen schon übergart und wird trocken.'}
+  ]
+}
+];
+
+/* ==========================================================================
+   DATEN – Küchenwissen für den Assistenten
+   ========================================================================== */
+
+/* Ersatzzutaten: keys = Suchbegriffe, txt = Antwort */
+const SUBS = [
+{keys:['ei','eier','eiern'], name:'Ei (im Backteig)', txt:'Pro Ei eine dieser Mengen:\n• 60 g Apfelmus – für saftige Kuchen\n• 1 EL gemahlene Leinsamen + 3 EL Wasser, 10 Min. quellen lassen\n• ½ zerdrückte Banane – schmeckt mit\n• 3 EL Aquafaba (Kichererbsenwasser)\nFür Rührei oder Omelett gibt es keinen echten Ersatz.'},
+{keys:['butter'], name:'Butter', txt:'• Margarine 1:1\n• Öl: nur 80 % der Menge nehmen (100 g Butter → 80 g Öl), da Butter Wasser enthält\n• Beim Backen von Mürbeteig ist Kokosfett eine feste Alternative\nZum Braten geht jedes neutrale Öl, für den Buttergeschmack am Ende ein Stück Butter zugeben.'},
+{keys:['buttermilch'], name:'Buttermilch', txt:'240 ml Milch + 1 EL Zitronensaft oder Essig verrühren und 5 Minuten stehen lassen – die Milch dickt leicht an. Funktioniert auch mit Hafer- oder Sojamilch.'},
+{keys:['sahne','schlagsahne','rahm'], name:'Sahne', txt:'• Zum Kochen: Kokosmilch (gibt Eigengeschmack), Crème fraîche mit Milch verdünnt, oder Cashewcreme\n• Zum Aufschlagen: nur Aufschlagsahne oder gekühlte Kokoscreme aus der Dose\n• Für Saucen: Frischkäse mit etwas Brühe glattrühren'},
+{keys:['backpulver'], name:'Backpulver', txt:'1 TL Backpulver ≈ ¼ TL Natron + ½ TL Weinsteinsäure (oder 1 TL Zitronensaft/Essig im Teig). Umgekehrt kannst du Natron durch die dreifache Menge Backpulver ersetzen – dann aber die Säure im Rezept nicht mitrechnen.'},
+{keys:['natron'], name:'Natron', txt:'Ersetzbar durch die dreifache Menge Backpulver. Wichtig: Natron braucht eine Säure im Teig (Buttermilch, Joghurt, Kakao, Essig). Fehlt sie, bleibt der Teig flach und schmeckt seifig.'},
+{keys:['hefe','trockenhefe','frischhefe'], name:'Hefe', txt:'1 Würfel frische Hefe (42 g) = 2 Päckchen Trockenhefe (14 g) und reicht für ca. 1 kg Mehl.\nTrockenhefe kann direkt ins Mehl, frische Hefe löst man in lauwarmer Flüssigkeit auf. Weniger Hefe plus längere Gehzeit ergibt immer mehr Geschmack.'},
+{keys:['zucker'], name:'Zucker', txt:'• Honig oder Ahornsirup: ¾ der Menge nehmen und die Flüssigkeit im Rezept um ca. 20 % reduzieren\n• Brauner Zucker 1:1, gibt Karamellnote\n• Beim Backen trägt Zucker auch zu Bräunung und Feuchtigkeit bei – mehr als ein Drittel weglassen verändert das Ergebnis deutlich.'},
+{keys:['weißwein','wein','weisswein','rotwein'], name:'Wein zum Kochen', txt:'• Weißwein: Gemüsebrühe + 1 TL Weißweinessig oder Zitronensaft\n• Rotwein: kräftige Brühe + 1 TL Balsamico\nDie Säure ist wichtig, sonst fehlt genau der Effekt, für den der Wein im Rezept steht.'},
+{keys:['crème fraîche','creme fraiche','schmand','sauerrahm'], name:'Crème fraîche', txt:'Schmand, saure Sahne oder griechischer Joghurt. Achtung: Je weniger Fett, desto eher flockt es beim Kochen aus – Joghurt deshalb erst nach dem Herd einrühren.'},
+{keys:['milch'], name:'Milch', txt:'Hafer-, Soja- oder Mandelmilch funktionieren beim Backen und Kochen 1:1. Hafermilch ist am neutralsten und bräunt am ähnlichsten.'},
+{keys:['parmesan'], name:'Parmesan', txt:'Grana Padano oder Pecorino (kräftiger, salziger). Vegan: Hefeflocken mit gemahlenen Cashews und einer Prise Salz.'},
+{keys:['schalotte','schalotten'], name:'Schalotte', txt:'Eine milde Zwiebel, davon etwa die halbe Menge. Schalotten sind feiner und süßer – bei rohen Anwendungen wie Vinaigrette lohnt sich der Unterschied.'},
+{keys:['frische kräuter','kräuter','petersilie','basilikum','thymian'], name:'Frische Kräuter', txt:'Getrocknete Kräuter: nur ein Drittel der Menge, und früh mitkochen statt am Ende dazugeben. Umgekehrt gilt: 1 TL getrocknet ≈ 1 EL frisch.'},
+{keys:['tomatenmark'], name:'Tomatenmark', txt:'Passierte Tomaten stark einkochen (ca. 3 EL passiert ≈ 1 EL Mark) oder Ketchup nehmen – dann aber Zucker und Essig im Rezept anpassen.'},
+{keys:['speisestärke','stärke','staerke','maisstärke'], name:'Speisestärke', txt:'Doppelte Menge Mehl, allerdings wird die Sauce dadurch trüber und schmeckt leicht mehlig. Alternativ Pfeilwurzelstärke 1:1. Immer erst in kaltem Wasser anrühren.'},
+{keys:['zitrone','zitronensaft'], name:'Zitronensaft', txt:'Weißweinessig oder Apfelessig in etwa gleicher Menge, oder Limettensaft 1:1. Für Abrieb gibt es keinen echten Ersatz – dann lieber etwas mehr Säure nehmen.'},
+{keys:['sojasauce','soja'], name:'Sojasauce', txt:'Tamari (glutenfrei), Worcestersauce plus etwas Salz, oder Miso mit Wasser verdünnt. Alle bringen Umami – die Mengen unterscheiden sich im Salzgehalt, also vorsichtig dosieren.'},
+{keys:['fischsauce'], name:'Fischsauce', txt:'Sojasauce mit einer Prise Zucker, oder Sojasauce plus eine fein gehackte Sardelle für mehr Tiefe.'},
+{keys:['vanilleschote','vanille'], name:'Vanilleschote', txt:'1 Schote ≈ 1 TL Vanilleextrakt ≈ 1 Päckchen Vanillezucker (dann 8 g Zucker im Rezept abziehen).'},
+{keys:['mascarpone'], name:'Mascarpone', txt:'250 g Frischkäse mit 60 ml Sahne glattrühren. Für Tiramisu funktioniert das gut, wird aber etwas weniger fest.'},
+{keys:['semmelbrösel','paniermehl','brösel'], name:'Semmelbrösel', txt:'Getrocknetes Brot im Mixer, gemahlene Haferflocken, zerdrückte Cornflakes oder Panko (wird deutlich knuspriger).'},
+{keys:['reis'], name:'Reis als Beilage', txt:'Bulgur, Couscous (nur quellen lassen), Quinoa oder Hirse. Couscous ist mit 5 Minuten am schnellsten, Quinoa bringt am meisten Eiweiß mit.'},
+{keys:['knoblauch'], name:'Knoblauch', txt:'1 Zehe ≈ ⅛ TL Knoblauchpulver ≈ ½ TL Knoblauchgranulat. Getrocknet fehlt die frische Schärfe, dafür verbrennt er nicht so leicht.'}
+];
+
+/* Gewicht pro Esslöffel (gestrichen), für Mengen-Umrechnungen */
+const SPOON_G = {
+  'mehl':9, 'zucker':12, 'puderzucker':8, 'salz':18, 'butter':15, 'öl':13, 'ol':13,
+  'honig':21, 'milch':15, 'wasser':15, 'sahne':15, 'kakao':6, 'haferflocken':6,
+  'reis':15, 'grieß':12, 'semmelbrösel':7, 'stärke':9, 'speisestärke':9, 'joghurt':16,
+  'tomatenmark':16, 'senf':16, 'essig':15, 'sojasauce':16, 'parmesan':6
+};
+
+/* Kerntemperaturen in °C */
+const CORE_TEMPS = [
+  {keys:['hähnchen','huhn','hühnchen','geflügel','pute','truthahn','ente'], name:'Geflügel', txt:'74 °C durchgehend. Bei Geflügel gibt es keine Kompromisse – Salmonellen sterben erst hier zuverlässig ab. Am dicksten Punkt messen, ohne den Knochen zu berühren.'},
+  {keys:['rind','steak','roastbeef','rinderfilet'], name:'Rind (Steak)', txt:'• 48 °C rare\n• 52 °C medium rare\n• 56 °C medium\n• 62 °C durch\nBeim Ruhen steigt die Temperatur noch um 2–5 °C – also 3 °C vor dem Ziel vom Herd nehmen.'},
+  {keys:['schwein','schweinefilet','schweinebraten','kotelett'], name:'Schwein', txt:'62–65 °C ergibt saftiges, leicht rosa Fleisch und ist heute unbedenklich. 70 °C für vollständig durch. Hackfleisch immer 70 °C.'},
+  {keys:['lamm'], name:'Lamm', txt:'54 °C medium rare, 58 °C medium, 65 °C durch. Lammkeule verträgt etwas mehr als Lammrücken.'},
+  {keys:['fisch','lachs','forelle','kabeljau','dorsch'], name:'Fisch', txt:'Lachs 45–50 °C für glasigen Kern, 55 °C durchgegart. Weißfisch wie Kabeljau 55–58 °C. Der Fisch ist fertig, sobald sich die Schichten mit leichtem Druck trennen lassen.'},
+  {keys:['hack','hackfleisch','frikadellen','burger'], name:'Hackfleisch', txt:'70 °C. Beim Faschieren gelangen Keime von der Oberfläche ins Innere, deshalb gilt hier nicht die Steak-Regel.'}
+];
+
+/* Ofen-Umrechnung, Maße */
+const OVEN_GAS = {1:150, 2:170, 3:190, 4:210, 5:230, 6:250};
+
+/* ==========================================================================
+   ZUSTAND & SPEICHER
+   ========================================================================== */
+const STORE_KEY = 'kochbuch.v1';
+
+const state = {
+  tab: 'recipes',
+  filter: 'Alles',
+  detailId: null,
+  servings: 0,
+  checked: {},            // rezeptId -> Set von Zutatenindizes
+  lesson: null,           // {courseId, lessonId} oder {courseId, quiz:true}
+  quiz: null,             // laufender Quizversuch
+  chat: [],
+  busy: false
+};
+
+const store = {
+  favs: [],
+  shopping: [],
+  pantry: [],
+  progress: {},           // kursId -> {lessons:[ids], best:0}
+  settings: { speak:false, awake:false, apiKey:'' }
+};
+
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(Array.isArray(d.favs)) store.favs = d.favs;
+    if(Array.isArray(d.shopping)) store.shopping = d.shopping;
+    if(Array.isArray(d.pantry)) store.pantry = d.pantry;
+    if(d.progress && typeof d.progress === 'object') store.progress = d.progress;
+    if(d.settings) Object.assign(store.settings, d.settings);
+  }catch(e){ /* beschädigter Speicher: mit Standardwerten weitermachen */ }
+}
+
+function saveStore(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+  catch(e){ /* z.B. privater Modus: App funktioniert weiter, nur ohne Speichern */ }
+}
+
+/* ==========================================================================
+   HELFER
+   ========================================================================== */
+function el(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function recipeById(id){ return RECIPES.find(r => r.id === id); }
+function courseById(id){ return COURSES.find(c => c.id === id); }
+
+let toastTimer = null;
+function showToast(msg){
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.toggle('raised', typeof timers !== 'undefined' && timers.length > 0);
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+/* Zahl hübsch darstellen: 0.5 -> ½, 2.25 -> 2¼ */
+const FRACTIONS = {0.25:'¼', 0.33:'⅓', 0.5:'½', 0.66:'⅔', 0.75:'¾'};
+function num2str(n){
+  if(!isFinite(n)) return '';
+  const whole = Math.floor(n);
+  const rest = Math.round((n - whole) * 100) / 100;
+  let frac = '';
+  for(const k in FRACTIONS){
+    if(Math.abs(rest - parseFloat(k)) < 0.06){ frac = FRACTIONS[k]; break; }
+  }
+  if(frac) return (whole ? whole : '') + frac;
+  if(rest === 0) return String(whole);
+  return String(Math.round(n * 10) / 10).replace('.', ',');
+}
+
+/* Menge auf die gewählte Portionszahl umrechnen */
+function scaleQty(ing, factor){
+  if(ing.fix || !ing.q) return num2str(ing.q || 0);
+  const v = ing.q * factor;
+  const weighed = ['g','ml','kg','l'].includes(ing.u);
+  let r;
+  if(weighed){
+    if(v >= 100) r = Math.round(v / 10) * 10;
+    else if(v >= 20) r = Math.round(v / 5) * 5;
+    else r = Math.round(v);
+  }else{
+    r = Math.round(v * 4) / 4;   // auf Viertel runden
+  }
+  return num2str(r);
+}
+function ingLine(ing, factor){
+  const q = scaleQty(ing, factor);
+  return (q ? q + ' ' : '') + (ing.u || '');
+}
+
+/* ==========================================================================
+   NAVIGATION
+   ========================================================================== */
+const TABS = {
+  recipes: {view:'viewRecipes', title:'Kochbuch',  sub:'Rezepte · Technik · Assistent'},
+  learn:   {view:'viewLearn',   title:'Lernen',    sub:'Grundtechniken Schritt für Schritt'},
+  chat:    {view:'viewChat',    title:'Assistent', sub:'Fragen zur Küche'},
+  tips:    {view:'viewTips',    title:'Tipps',     sub:'Was in der Praxis zählt'},
+  kitchen: {view:'viewKitchen', title:'Küche',     sub:'Liste · Vorrat · Fortschritt'}
+};
+
+let overlayView = null;   // 'detail' | 'lesson' | null
+
+function setHead(title, sub, back){
+  el('headTitle').textContent = title;
+  el('headSub').textContent = sub;
+  el('backBtn').style.display = back ? 'flex' : 'none';
+}
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === id));
+}
+
+function switchTab(tab){
+  state.tab = tab;
+  overlayView = null;
+  const t = TABS[tab];
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  el('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  setHead(t.title, t.sub, false);
+  showView(t.view);
+  if(tab === 'learn') renderLearn();
+  if(tab === 'tips') renderTips();
+  if(tab === 'kitchen') renderKitchen();
+  if(tab === 'chat') setTimeout(() => scrollChat(), 30);
+  positionTimerPill();
+}
+
+function goBack(){
+  if(overlayView === 'lesson' && state.lesson){
+    state.lesson = null; state.quiz = null;
+    overlayView = null;
+    switchTab('learn');
+    return;
+  }
+  overlayView = null;
+  switchTab(state.tab);
+}
+
+/* ==========================================================================
+   REZEPTE – Liste
+   ========================================================================== */
+const FILTERS = ['Alles','Aus Vorrat','Favoriten','Schnell','Vegetarisch','Vegan','Pasta','Suppe','Eintopf','Ofen','Backen','Salat','Grundrezept'];
+
+function renderChips(){
+  el('recipeChips').innerHTML = FILTERS.map(f =>
+    `<button class="chip${state.filter === f ? ' on' : ''}" onclick="setFilter('${f}')">${esc(f)}</button>`
+  ).join('');
+}
+function setFilter(f){ state.filter = f; renderChips(); renderRecipes(); }
+
+/* Wie viele Zutaten eines Rezepts liegen im Vorrat? */
+function pantryMatches(r){
+  if(!store.pantry.length) return 0;
+  const p = store.pantry.map(x => x.toLowerCase());
+  return r.ings.filter(i => {
+    const n = i.n.toLowerCase();
+    return p.some(x => n.includes(x) || x.includes(n.split(',')[0]));
+  }).length;
+}
+
+function matchesFilter(r){
+  switch(state.filter){
+    case 'Alles': return true;
+    case 'Aus Vorrat': return pantryMatches(r) > 0;
+    case 'Favoriten': return store.favs.includes(r.id);
+    case 'Schnell': return r.minutes <= 30;
+    case 'Vegetarisch': return r.diet === 'veg' || r.diet === 'vegan';
+    case 'Vegan': return r.diet === 'vegan';
+    default: return r.cat === state.filter;
+  }
+}
+
+function renderRecipes(){
+  const qEl = el('recipeSearch');
+  const q = (qEl ? qEl.value : '').trim().toLowerCase();
+  let list = RECIPES.filter(matchesFilter);
+
+  if(q){
+    list = list.filter(r =>
+      r.name.toLowerCase().includes(q) ||
+      r.cat.toLowerCase().includes(q) ||
+      r.desc.toLowerCase().includes(q) ||
+      r.tags.some(t => t.toLowerCase().includes(q)) ||
+      r.ings.some(i => i.n.toLowerCase().includes(q))
+    );
+  }
+
+  if(state.filter === 'Aus Vorrat'){
+    list = list.slice().sort((a,b) => pantryMatches(b) - pantryMatches(a));
+  }
+
+  if(!list.length){
+    el('recipeList').innerHTML = state.filter === 'Aus Vorrat' && !store.pantry.length
+      ? `<div class="empty"><span class="big">🧺</span>Dein Vorrat ist noch leer.<br>Trag unter <b>Küche</b> ein, was da ist –<br>dann sortiere ich die Rezepte danach.</div>`
+      : `<div class="empty"><span class="big">🔍</span>Nichts gefunden.<br>Andere Suche oder anderer Filter?</div>`;
+    return;
+  }
+
+  el('recipeList').innerHTML = list.map(r => {
+    const m = pantryMatches(r);
+    const matchTag = (state.filter === 'Aus Vorrat' && m)
+      ? `<span class="tag match">${m}/${r.ings.length} im Vorrat</span>` : '';
+    const dietTag = r.diet === 'vegan' ? '<span class="tag">Vegan</span>'
+                  : r.diet === 'veg' ? '<span class="tag">Vegetarisch</span>' : '';
+    const extra = r.tags.filter(t => !['Vegan','Vegetarisch'].includes(t)).slice(0,2);
+    return `
+    <div class="recipe-card" onclick="openRecipe('${r.id}')">
+      <div class="thumb">${r.emoji}</div>
+      <div class="rc-body">
+        <div class="rc-title">${esc(r.name)}</div>
+        <div class="rc-meta">${r.minutes} Min · ${esc(r.level)} · ${esc(r.cat)}</div>
+        <div class="rc-tags">${matchTag}${dietTag}${extra.map(t => `<span class="tag warn">${esc(t)}</span>`).join('')}</div>
+      </div>
+      ${store.favs.includes(r.id) ? '<span class="fav-dot">♥</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ==========================================================================
+   REZEPTE – Detailansicht
+   ========================================================================== */
+function openRecipe(id){
+  const r = recipeById(id);
+  if(!r) return;
+  state.detailId = id;
+  state.servings = r.base;
+  if(!state.checked[id]) state.checked[id] = {};
+  overlayView = 'detail';
+  setHead(r.name, r.minutes + ' Min · ' + r.level, true);
+  showView('viewDetail');
+  renderDetail();
+  el('viewDetail').scrollTop = 0;
+}
+
+function changeServings(d){
+  const r = recipeById(state.detailId);
+  if(!r) return;
+  state.servings = Math.min(20, Math.max(1, state.servings + d));
+  renderDetail();
+}
+
+function toggleIng(i){
+  const id = state.detailId;
+  state.checked[id][i] = !state.checked[id][i];
+  renderDetail();
+}
+
+function toggleFav(id){
+  const i = store.favs.indexOf(id);
+  if(i >= 0){ store.favs.splice(i,1); showToast('Aus Favoriten entfernt'); }
+  else { store.favs.push(id); showToast('Zu Favoriten hinzugefügt'); }
+  saveStore();
+  renderDetail();
+}
+
+function renderDetail(){
+  const r = recipeById(state.detailId);
+  if(!r) return;
+  const factor = state.servings / r.base;
+  const isFav = store.favs.includes(r.id);
+  const unit = r.id === 'brot' ? (state.servings === 1 ? 'Laib' : 'Laibe')
+             : r.id === 'schokokuchen' ? 'Stücke'
+             : (state.servings === 1 ? 'Portion' : 'Portionen');
+
+  el('viewDetail').innerHTML = `
+    <div class="detail-hero">
+      <div class="detail-emoji">${r.emoji}</div>
+      <div class="detail-title">${esc(r.name)}</div>
+      <div class="detail-desc">${esc(r.desc)}</div>
+      <div class="meta-row">
+        <div class="meta-item"><div class="k">Zeit</div><div class="v">${r.minutes} Min</div></div>
+        <div class="meta-item"><div class="k">Level</div><div class="v">${esc(r.level)}</div></div>
+        <div class="meta-item"><div class="k">Schritte</div><div class="v">${r.steps.length}</div></div>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn dark" onclick="startCook()">▶ Kochmodus</button>
+      <button class="btn" onclick="toggleFav('${r.id}')">${isFav ? '♥ Gemerkt' : '♡ Merken'}</button>
+    </div>
+
+    <div class="section-title">Zutaten</div>
+    <div class="portion-row">
+      <div>
+        <div class="setting-label">Portionen</div>
+        <div class="setting-desc" style="margin:0;">Mengen rechnen automatisch mit</div>
+      </div>
+      <div class="stepper">
+        <button onclick="changeServings(-1)" aria-label="weniger">−</button>
+        <span class="val">${state.servings} ${unit}</span>
+        <button onclick="changeServings(1)" aria-label="mehr">+</button>
+      </div>
+    </div>
+
+    <ul class="ing-list card" style="padding:4px 14px;">
+      ${r.ings.map((i, idx) => `
+        <li class="ing${state.checked[r.id][idx] ? ' done' : ''}" onclick="toggleIng(${idx})">
+          <span class="box">✓</span>
+          <span class="qt">${esc(ingLine(i, factor))}</span>
+          <span class="nm">${esc(i.n)}${i.note ? `<span class="note">${esc(i.note)}</span>` : ''}</span>
+        </li>`).join('')}
+    </ul>
+
+    <button class="btn wide" style="margin-top:12px;" onclick="addRecipeToShopping()">🧺 Zutaten auf die Einkaufsliste</button>
+
+    <div class="section-title">Zubereitung</div>
+    <ol class="steps card" style="padding:6px 15px;">
+      ${r.steps.map((s, idx) => `
+        <li class="step">
+          <span class="step-no">${idx+1}</span>
+          <div class="step-text">${esc(s.t)}
+            ${s.timer ? `<div><button class="step-timer" onclick="addTimer(${s.timer}, ${JSON.stringify(r.name + ' · Schritt ' + (idx+1)).replace(/"/g,'&quot;')})">⏱ ${s.timer} Min Timer</button></div>` : ''}
+          </div>
+        </li>`).join('')}
+    </ol>
+
+    ${r.tips.map(t => `<div class="inline-tip"><b>Tipp</b><br>${esc(t)}</div>`).join('')}
+
+    <button class="btn wide" style="margin-top:18px;" onclick="askAboutRecipe()">✦ Assistent zu diesem Rezept fragen</button>
+  `;
+}
+
+function addRecipeToShopping(){
+  const r = recipeById(state.detailId);
+  if(!r) return;
+  const factor = state.servings / r.base;
+  let added = 0;
+  r.ings.forEach(i => {
+    const sub = ingLine(i, factor) + ' · ' + r.name;
+    const existing = store.shopping.find(s => s.txt.toLowerCase() === i.n.toLowerCase() && !s.done);
+    if(existing){ existing.sub = existing.sub + ' + ' + ingLine(i, factor); }
+    else { store.shopping.push({txt:i.n, sub:sub, done:false}); }
+    added++;
+  });
+  saveStore();
+  showToast(added + ' Zutaten auf der Einkaufsliste');
+}
+
+/* ==========================================================================
+   KOCHMODUS
+   ========================================================================== */
+let cook = { recipe:null, idx:0 };
+let wakeLock = null;
+
+async function requestWakeLock(){
+  if(!store.settings.awake || !('wakeLock' in navigator)) return;
+  try{ wakeLock = await navigator.wakeLock.request('screen'); }
+  catch(e){ /* vom Browser abgelehnt – Kochmodus läuft trotzdem */ }
+}
+function releaseWakeLock(){
+  if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
+}
+
+function startCook(){
+  const r = recipeById(state.detailId);
+  if(!r) return;
+  cook = { recipe:r, idx:0 };
+  el('cookMode').classList.add('open');
+  requestWakeLock();
+  renderCook();
+}
+
+function closeCook(){
+  el('cookMode').classList.remove('open');
+  releaseWakeLock();
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
+function speakStep(text){
+  if(!store.settings.speak || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'de-DE';
+  u.rate = 0.95;
+  speechSynthesis.speak(u);
+}
+
+function renderCook(){
+  const r = cook.recipe;
+  if(!r) return;
+  const s = r.steps[cook.idx];
+  const last = cook.idx === r.steps.length - 1;
+
+  el('cookCount').textContent = `Schritt ${cook.idx+1} / ${r.steps.length}`;
+  el('cookBar').style.width = ((cook.idx+1) / r.steps.length * 100) + '%';
+  el('cookStep').textContent = s.t;
+  el('cookNextBtn').textContent = last ? 'Fertig' : 'Weiter';
+
+  const factor = state.servings / r.base;
+  const relevant = r.ings.filter(i => s.t.toLowerCase().includes(i.n.toLowerCase().split(',')[0].split(' ')[0]));
+  el('cookIngs').innerHTML = relevant.length
+    ? 'Dafür: ' + relevant.map(i => esc(ingLine(i, factor) + ' ' + i.n)).join(' · ')
+    : '';
+
+  const tEl = el('cookTimer');
+  if(s.timer){
+    tEl.classList.add('on');
+    tEl.innerHTML = `<button onclick="addTimer(${s.timer}, ${JSON.stringify(r.name + ' · Schritt ' + (cook.idx+1)).replace(/"/g,'&quot;')})">⏱ ${s.timer}:00 Timer starten</button>`;
+  }else{
+    tEl.classList.remove('on');
+  }
+
+  speakStep(s.t);
+}
+
+function cookNext(){
+  if(!cook.recipe) return;
+  if(cook.idx >= cook.recipe.steps.length - 1){
+    closeCook();
+    showToast('Guten Appetit! 🍽');
+    return;
+  }
+  cook.idx++;
+  renderCook();
+}
+function cookPrev(){
+  if(cook.idx > 0){ cook.idx--; renderCook(); }
+}
+
+/* ==========================================================================
+   TIMER
+   ========================================================================== */
+let timers = [];
+let timerTick = null;
+let audioCtx = null;
+
+function beep(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.28, 0.56].forEach(delay => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + delay);
+      g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + delay + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + delay + 0.2);
+      o.start(audioCtx.currentTime + delay);
+      o.stop(audioCtx.currentTime + delay + 0.22);
+    });
+  }catch(e){ /* Ton nicht verfügbar – Hinweis kommt trotzdem visuell */ }
+}
+
+function addTimer(minutes, label){
+  const t = {
+    id: Date.now() + Math.random(),
+    label: label || (minutes + ' Minuten'),
+    endsAt: Date.now() + minutes * 60000,
+    done: false
+  };
+  timers.push(t);
+  startTimerTick();
+  renderTimerPill();
+  showToast('Timer läuft: ' + minutes + ' Min');
+}
+
+function addManualTimer(){
+  const v = parseInt(el('timerMin').value, 10);
+  if(!v || v < 1){ showToast('Bitte Minuten eingeben'); return; }
+  addTimer(v, v + ' Minuten');
+  el('timerMin').value = '';
+  renderTimerSheet();
+}
+
+function removeTimer(id){
+  timers = timers.filter(t => t.id !== id);
+  renderTimerPill();
+  renderTimerSheet();
+}
+
+function startTimerTick(){
+  if(timerTick) return;
+  timerTick = setInterval(() => {
+    let ring = false;
+    timers.forEach(t => {
+      if(!t.done && Date.now() >= t.endsAt){
+        t.done = true;
+        ring = true;
+        showToast('⏰ ' + t.label + ' ist fertig');
+        beep();
+        if(navigator.vibrate) navigator.vibrate([300,120,300]);
+      }
+    });
+    renderTimerPill();
+    if(el('timerOverlay').classList.contains('open')) renderTimerSheet();
+    if(!timers.length){ clearInterval(timerTick); timerTick = null; }
+    if(ring) renderTimerPill();
+  }, 500);
+}
+
+function fmtRemaining(t){
+  const ms = Math.max(0, t.endsAt - Date.now());
+  const s = Math.round(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+}
+
+function positionTimerPill(){
+  const pill = el('timerPill');
+  if(state.tab === 'chat'){
+    // im Assistenten sitzt unten rechts der Senden-Knopf – Pille darüber setzen
+    const row = document.querySelector('.chat-input-row');
+    if(row) pill.style.bottom = (window.innerHeight - row.getBoundingClientRect().top + 8) + 'px';
+  }else{
+    pill.style.bottom = '';
+  }
+}
+
+function renderTimerPill(){
+  const pill = el('timerPill');
+  if(!timers.length){ pill.classList.remove('on','ring'); return; }
+  positionTimerPill();
+  const done = timers.find(t => t.done);
+  const next = timers.filter(t => !t.done).sort((a,b) => a.endsAt - b.endsAt)[0];
+  pill.classList.add('on');
+  pill.classList.toggle('ring', !!done);
+  pill.textContent = done ? '⏰ fertig' : '⏱ ' + fmtRemaining(next) + (timers.length > 1 ? '  +' + (timers.length-1) : '');
+}
+
+function openTimerSheet(){ el('timerOverlay').classList.add('open'); renderTimerSheet(); }
+
+function renderTimerSheet(){
+  el('timerSheetSub').textContent = timers.length ? timers.length + ' Timer' : 'Kein Timer aktiv';
+  el('timerList').innerHTML = timers.length ? timers.map(t => `
+    <div class="li">
+      <span class="txt">${esc(t.label)}<span class="sub">${t.done ? 'fertig' : 'noch ' + fmtRemaining(t)}</span></span>
+      <button class="x" onclick="removeTimer(${t.id})">✕</button>
+    </div>`).join('')
+    : '<div class="muted">Timer startest du hier oder direkt an einem Kochschritt.</div>';
+}
+
+/* ==========================================================================
+   LERNEN
+   ========================================================================== */
+function courseDone(c){
+  const p = store.progress[c.id];
+  return p ? p.lessons.length : 0;
+}
+
+function renderLearn(){
+  const totalL = COURSES.reduce((s,c) => s + c.lessons.length, 0);
+  const doneL = COURSES.reduce((s,c) => s + courseDone(c), 0);
+  const pct = Math.round(doneL / totalL * 100);
+
+  el('viewLearn').innerHTML = `
+    <div class="hero-tip">
+      <div class="k">Dein Fortschritt</div>
+      <div class="t">${doneL} von ${totalL} Lektionen</div>
+      <div class="bar" style="background:rgba(245,240,230,0.2)"><i style="width:${pct}%; background:var(--gold)"></i></div>
+      <div class="b" style="margin-top:10px;">${
+        pct === 0 ? 'Fang mit „Messer & Schneiden“ an – das zahlt sich bei jedem Gericht aus.'
+        : pct < 100 ? 'Weiter so. Jede Lektion dauert nur ein paar Minuten.'
+        : 'Alle Lektionen geschafft. Wiederholen lohnt sich trotzdem – am besten mit dem Quiz.'}</div>
+    </div>
+    ${COURSES.map(c => {
+      const p = store.progress[c.id] || {lessons:[], best:0};
+      const pctC = Math.round(p.lessons.length / c.lessons.length * 100);
+      return `
+      <div class="course" onclick="openCourse('${c.id}')">
+        <div class="course-head">
+          <span class="course-ic">${c.ic}</span>
+          <span class="course-name">${esc(c.name)}</span>
+          <span style="opacity:0.35">›</span>
+        </div>
+        <div class="muted" style="margin-top:6px;">${esc(c.desc)}</div>
+        <div class="bar"><i style="width:${pctC}%"></i></div>
+        <div class="course-meta">${p.lessons.length}/${c.lessons.length} Lektionen${p.best ? ' · Quiz: ' + p.best + '/' + c.quiz.length : ''}</div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function openCourse(id){
+  const c = courseById(id);
+  if(!c) return;
+  const p = store.progress[id] || {lessons:[], best:0};
+  overlayView = 'lesson';
+  state.lesson = {courseId:id};
+  setHead(c.name, c.lessons.length + ' Lektionen · Quiz', true);
+  showView('viewLesson');
+  el('viewLesson').scrollTop = 0;
+  el('viewLesson').innerHTML = `
+    <div class="muted" style="margin-bottom:16px;">${esc(c.desc)}</div>
+    ${c.lessons.map((l, i) => {
+      const done = p.lessons.includes(l.id);
+      return `
+      <div class="course" onclick="openLesson('${id}','${l.id}')">
+        <div class="course-head">
+          <span class="course-ic">${done ? '✓' : (i+1)}</span>
+          <span class="course-name">${esc(l.title)}</span>
+          <span style="opacity:0.35">›</span>
+        </div>
+        <div class="course-meta">${l.mins} Min Lesezeit${done ? ' · gelesen' : ''}</div>
+      </div>`;
+    }).join('')}
+    <button class="btn primary wide" style="margin-top:14px;" onclick="startQuiz('${id}')">
+      Quiz starten · ${c.quiz.length} Fragen
+    </button>
+    ${p.best ? `<div class="muted" style="text-align:center;margin-top:10px;">Bestes Ergebnis: ${p.best} von ${c.quiz.length}</div>` : ''}
+  `;
+}
+
+function openLesson(courseId, lessonId){
+  const c = courseById(courseId);
+  const l = c.lessons.find(x => x.id === lessonId);
+  if(!l) return;
+  const idx = c.lessons.indexOf(l);
+  const next = c.lessons[idx+1];
+  state.lesson = {courseId, lessonId};
+  setHead(l.title, c.name, true);
+  showView('viewLesson');
+  el('viewLesson').scrollTop = 0;
+  el('viewLesson').innerHTML = `
+    <div class="lesson-body">${l.html}</div>
+    <div class="action-row" style="margin-top:24px;">
+      <button class="btn" onclick="openCourse('${courseId}')">Übersicht</button>
+      <button class="btn primary" onclick="completeLesson('${courseId}','${lessonId}', ${next ? `'${next.id}'` : 'null'})">
+        ${next ? 'Gelesen · weiter' : 'Gelesen · zum Quiz'}
+      </button>
+    </div>
+  `;
+}
+
+function completeLesson(courseId, lessonId, nextId){
+  const p = store.progress[courseId] || {lessons:[], best:0};
+  if(!p.lessons.includes(lessonId)) p.lessons.push(lessonId);
+  store.progress[courseId] = p;
+  saveStore();
+  if(nextId) openLesson(courseId, nextId);
+  else startQuiz(courseId);
+}
+
+/* ---- Quiz ---- */
+function startQuiz(courseId){
+  const c = courseById(courseId);
+  state.quiz = {courseId, i:0, score:0, answered:false};
+  overlayView = 'lesson';
+  setHead('Quiz', c.name, true);
+  showView('viewLesson');
+  renderQuiz();
+}
+
+function renderQuiz(){
+  const q = state.quiz;
+  const c = courseById(q.courseId);
+  const item = c.quiz[q.i];
+  el('viewLesson').scrollTop = 0;
+  el('viewLesson').innerHTML = `
+    <div class="course-meta" style="margin-bottom:12px;">Frage ${q.i+1} von ${c.quiz.length} · ${q.score} richtig</div>
+    <div class="quiz-q">${esc(item.q)}</div>
+    <div id="quizOpts">
+      ${item.opts.map((o, i) => `<button class="opt" id="opt${i}" onclick="answerQuiz(${i})">${esc(o)}</button>`).join('')}
+    </div>
+    <div class="quiz-fb" id="quizFb"></div>
+    <button class="btn primary wide" id="quizNext" style="margin-top:14px; display:none;" onclick="nextQuiz()">Weiter</button>
+  `;
+}
+
+function answerQuiz(i){
+  const q = state.quiz;
+  if(q.answered) return;
+  q.answered = true;
+  const c = courseById(q.courseId);
+  const item = c.quiz[q.i];
+  const right = i === item.a;
+  if(right) q.score++;
+
+  item.opts.forEach((_, idx) => {
+    const b = el('opt' + idx);
+    b.disabled = true;
+    if(idx === item.a) b.classList.add('right');
+    else if(idx === i) b.classList.add('wrong');
+  });
+  const fb = el('quizFb');
+  fb.innerHTML = (right ? '<b>Richtig.</b> ' : '<b>Nicht ganz.</b> ') + esc(item.fb);
+  fb.classList.add('on');
+  el('quizNext').style.display = 'flex';
+}
+
+function nextQuiz(){
+  const q = state.quiz;
+  const c = courseById(q.courseId);
+  if(q.i < c.quiz.length - 1){
+    q.i++; q.answered = false;
+    renderQuiz();
+    return;
+  }
+  const p = store.progress[q.courseId] || {lessons:[], best:0};
+  if(q.score > p.best) p.best = q.score;
+  store.progress[q.courseId] = p;
+  saveStore();
+
+  const perfect = q.score === c.quiz.length;
+  el('viewLesson').innerHTML = `
+    <div class="empty">
+      <span class="big">${perfect ? '🏆' : q.score >= c.quiz.length/2 ? '👍' : '📖'}</span>
+      <div style="font-family:'Fraunces',serif; font-size:22px; color:var(--ink); margin-bottom:8px;">
+        ${q.score} von ${c.quiz.length} richtig
+      </div>
+      ${perfect ? 'Alles gesessen.' : 'Die Lektionen erklären genau diese Punkte – ein zweiter Durchgang lohnt sich.'}
+    </div>
+    <div class="action-row">
+      <button class="btn" onclick="openCourse('${q.courseId}')">Zum Kurs</button>
+      <button class="btn primary" onclick="startQuiz('${q.courseId}')">Nochmal</button>
+    </div>
+  `;
+  state.quiz = null;
+}
+
+/* ==========================================================================
+   TIPPS
+   ========================================================================== */
+let tipCat = 'Alle';
+
+function renderTips(){
+  const cats = ['Alle', ...new Set(TIPS.map(t => t.cat))];
+  const day = Math.floor(Date.now() / 86400000);
+  const daily = TIPS[day % TIPS.length];
+  const list = tipCat === 'Alle' ? TIPS : TIPS.filter(t => t.cat === tipCat);
+
+  el('viewTips').innerHTML = `
+    <div class="hero-tip">
+      <div class="k">Tipp des Tages · ${esc(daily.cat)}</div>
+      <div class="t">${esc(daily.t)}</div>
+      <div class="b">${esc(daily.b)}</div>
+    </div>
+    <div class="chips">
+      ${cats.map(c => `<button class="chip${tipCat === c ? ' on' : ''}" onclick="setTipCat('${esc(c)}')">${esc(c)}</button>`).join('')}
+    </div>
+    ${list.map(t => `
+      <div class="tip-card">
+        <div class="tip-h"><span class="tip-title">${esc(t.t)}</span><span class="tip-cat">${esc(t.cat)}</span></div>
+        <div class="tip-body">${esc(t.b)}</div>
+      </div>`).join('')}
+  `;
+}
+function setTipCat(c){ tipCat = c; renderTips(); }
+
+/* ==========================================================================
+   KÜCHE – Einkaufsliste, Vorrat, Favoriten
+   ========================================================================== */
+function renderKitchen(){
+  const open = store.shopping.filter(s => !s.done).length;
+  const favs = store.favs.map(recipeById).filter(Boolean);
+
+  el('viewKitchen').innerHTML = `
+    <div class="section-title">Einkaufsliste ${open ? `<span class="mono" style="font-size:12px;color:var(--ink-faint)">· ${open} offen</span>` : ''}</div>
+    <div class="add-row">
+      <input id="shopInput" placeholder="Etwas hinzufügen …" onkeydown="if(event.key==='Enter')addShopItem()">
+      <button class="btn" onclick="addShopItem()">+</button>
+    </div>
+    <div class="card" style="padding:4px 14px;">
+      ${store.shopping.length ? store.shopping.map((s, i) => `
+        <div class="li${s.done ? ' done' : ''}">
+          <span class="box" onclick="toggleShop(${i})">✓</span>
+          <span class="txt" onclick="toggleShop(${i})">${esc(s.txt)}${s.sub ? `<span class="sub">${esc(s.sub)}</span>` : ''}</span>
+          <button class="x" onclick="delShop(${i})">✕</button>
+        </div>`).join('')
+        : '<div class="muted" style="padding:14px 0;">Noch nichts drauf. Zutaten kommen auch direkt aus einem Rezept hierher.</div>'}
+    </div>
+    ${store.shopping.some(s => s.done) ? `<button class="btn sm" style="margin-top:10px;" onclick="clearDoneShop()">Erledigte entfernen</button>` : ''}
+
+    <div class="section-title">Vorratsschrank</div>
+    <div class="muted" style="margin-bottom:10px;">Was zu Hause ist. Der Filter <b>Aus Vorrat</b> und der Assistent nutzen diese Liste.</div>
+    <div class="add-row">
+      <input id="pantryInput" placeholder="z. B. Linsen, Eier, Zwiebeln" onkeydown="if(event.key==='Enter')addPantry()">
+      <button class="btn" onclick="addPantry()">+</button>
+    </div>
+    <div class="chips" style="flex-wrap:wrap; overflow:visible;">
+      ${store.pantry.length ? store.pantry.map((p, i) =>
+        `<button class="chip on" onclick="delPantry(${i})">${esc(p)} ✕</button>`).join('')
+        : '<span class="muted">Noch leer.</span>'}
+    </div>
+    ${store.pantry.length ? `<button class="btn wide" style="margin-top:6px;" onclick="cookFromPantry()">Was kann ich damit kochen?</button>` : ''}
+
+    <div class="section-title">Favoriten</div>
+    ${favs.length ? favs.map(r => `
+      <div class="recipe-card" onclick="openRecipe('${r.id}')">
+        <div class="thumb">${r.emoji}</div>
+        <div class="rc-body">
+          <div class="rc-title">${esc(r.name)}</div>
+          <div class="rc-meta">${r.minutes} Min · ${esc(r.level)}</div>
+        </div>
+        <span class="fav-dot">♥</span>
+      </div>`).join('')
+      : '<div class="muted">Noch keine Favoriten. In einem Rezept auf ♡ Merken tippen.</div>'}
+
+    <div class="section-title">Lernfortschritt</div>
+    <div class="card" style="padding:14px 15px;">
+      ${COURSES.map(c => {
+        const p = store.progress[c.id] || {lessons:[], best:0};
+        const pct = Math.round(p.lessons.length / c.lessons.length * 100);
+        return `<div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:14px;">
+            <span>${c.ic} ${esc(c.name)}</span>
+            <span class="mono" style="font-size:11.5px;color:var(--ink-faint)">${p.lessons.length}/${c.lessons.length}${p.best ? ' · Quiz ' + p.best : ''}</span>
+          </div>
+          <div class="bar"><i style="width:${pct}%"></i></div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function addShopItem(){
+  const inp = el('shopInput');
+  const v = inp.value.trim();
+  if(!v) return;
+  store.shopping.push({txt:v, sub:'', done:false});
+  saveStore();
+  renderKitchen();
+  const n = el('shopInput'); if(n) n.focus();
+}
+function toggleShop(i){ store.shopping[i].done = !store.shopping[i].done; saveStore(); renderKitchen(); }
+function delShop(i){ store.shopping.splice(i,1); saveStore(); renderKitchen(); }
+function clearDoneShop(){ store.shopping = store.shopping.filter(s => !s.done); saveStore(); renderKitchen(); }
+
+function addPantry(){
+  const inp = el('pantryInput');
+  const v = inp.value.trim();
+  if(!v) return;
+  v.split(',').map(x => x.trim()).filter(Boolean).forEach(x => {
+    if(!store.pantry.some(p => p.toLowerCase() === x.toLowerCase())) store.pantry.push(x);
+  });
+  saveStore();
+  renderKitchen();
+  const n = el('pantryInput'); if(n) n.focus();
+}
+function delPantry(i){ store.pantry.splice(i,1); saveStore(); renderKitchen(); }
+
+function cookFromPantry(){
+  switchTab('chat');
+  pushMsg('me', 'Was kann ich mit meinem Vorrat kochen?');
+  setTimeout(() => handleQuestion('Was kann ich mit meinem Vorrat kochen?'), 120);
+}
+
+/* ==========================================================================
+   ASSISTENT
+   Antwortet offline aus dem eingebauten Wissen. Liegt ein API-Schlüssel vor,
+   wird zusätzlich ein Sprachmodell gefragt und dessen Antwort bevorzugt.
+   ========================================================================== */
+
+const SUGGESTIONS = [
+  'Was kann ich mit Linsen und Tomaten kochen?',
+  'Ersatz für Buttermilch?',
+  'Wie viel Gramm sind 3 EL Mehl?',
+  '200 °C Ober-/Unterhitze in Umluft?',
+  'Kerntemperatur Hähnchen?',
+  'Meine Sauce ist zu dünn',
+  'Gib mir einen Tipp'
+];
+
+function autoGrow(t){
+  t.style.height = 'auto';
+  t.style.height = Math.min(110, t.scrollHeight) + 'px';
+  positionTimerPill();
+}
+function chatKey(e){
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
+}
+function scrollChat(){
+  const s = el('chatScroll');
+  s.scrollTop = s.scrollHeight;
+}
+
+function renderSuggestions(){
+  el('chatSugg').innerHTML = SUGGESTIONS.map(s =>
+    `<button class="chip" onclick="askSuggestion(${JSON.stringify(s).replace(/"/g,'&quot;')})">${esc(s)}</button>`
+  ).join('');
+}
+function askSuggestion(text){
+  el('chatInput').value = text;
+  sendChat();
+}
+
+function pushMsg(role, text, links){
+  state.chat.push({role, text, links: links || []});
+  renderChat();
+}
+
+function renderChat(){
+  el('chatScroll').innerHTML = state.chat.map(m => {
+    if(m.typing) return `<div class="msg ai"><div class="typing"><i></i><i></i><i></i></div></div>`;
+    const body = esc(m.text).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    const links = (m.links || []).map(l =>
+      `<button class="msg-link" onclick="${l.act}">${esc(l.label)}</button>`).join('');
+    const src = m.src ? `<span class="src">${esc(m.src)}</span>` : '';
+    return `<div class="msg ${m.role === 'me' ? 'me' : 'ai'}">${body}${links ? '<div>' + links + '</div>' : ''}${src}</div>`;
+  }).join('');
+  scrollChat();
+}
+
+function sendChat(){
+  const inp = el('chatInput');
+  const text = inp.value.trim();
+  if(!text || state.busy) return;
+  inp.value = '';
+  autoGrow(inp);
+  pushMsg('me', text);
+  handleQuestion(text);
+}
+
+function askAboutRecipe(){
+  const r = recipeById(state.detailId);
+  switchTab('chat');
+  el('chatInput').value = 'Frage zu ' + r.name + ': ';
+  el('chatInput').focus();
+}
+
+/* ---- Textwerkzeuge ---- */
+function norm(s){
+  return s.toLowerCase()
+    .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
+}
+function hasAny(t, arr){ return arr.some(w => t.includes(w)); }
+
+/* Treffer am Wortanfang – fängt gebeugte Formen wie "zähem" ab. */
+function hasWordStart(t, w){
+  return new RegExp('(^|[^a-zäöüß])' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).test(t);
+}
+
+/* Schlüssel eines Wissenseintrags gegen den Text prüfen:
+   ganzes Wort, oder – bei längeren Begriffen – Wortanfang für Beugungen.
+   Verhindert, dass "Fleisch" den Schlüssel "ei" trifft. */
+function matchKey(t, k){
+  if(/\s/.test(k)) return t.includes(k);
+  if(hasWord(t, k)) return true;
+  return k.length >= 4 && hasWordStart(t, k);
+}
+
+/* Treffer nur an Wortgrenzen – sonst matcht "erzähl" auf "zäh". */
+function hasWord(t, w){
+  if(/\s/.test(w)) return t.includes(w);
+  return new RegExp('(^|[^a-zäöüß])' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '([^a-zäöüß]|$)').test(t);
+}
+
+/* Alle bekannten Zutatennamen aus den Rezepten */
+const INGREDIENT_VOCAB = (() => {
+  const set = new Set();
+  RECIPES.forEach(r => r.ings.forEach(i => {
+    const base = i.n.toLowerCase().split(',')[0].trim();
+    set.add(base);
+    base.split(' ').forEach(w => { if(w.length > 4) set.add(w); });
+  }));
+  return [...set];
+})();
+
+/* Umgangssprache auf die Namen aus den Rezepten abbilden */
+const SYNONYMS = {
+  'ei':'eier', 'tomate':'tomaten', 'kartoffel':'kartoffeln', 'nudeln':'spaghetti',
+  'pasta':'spaghetti', 'huhn':'hähnchen', 'hühnchen':'hähnchen', 'hendl':'hähnchen',
+  'zwiebeln':'zwiebel', 'möhre':'karotte', 'möhren':'karotte', 'karotten':'karotte',
+  'bohnen':'kidneybohnen', 'linse':'linsen', 'käse':'feta', 'sahne':'sahne'
+};
+
+function findIngredients(text){
+  const t = text.toLowerCase();
+  const extra = Object.keys(SYNONYMS).filter(k => hasWord(t, k)).map(k => SYNONYMS[k]);
+  const found = INGREDIENT_VOCAB.filter(v => t.includes(v)).concat(extra);
+  // längere Treffer bevorzugen und Teilstrings entfernen ("tomaten" schluckt "tomate")
+  return [...new Set(found)]
+    .sort((a,b) => b.length - a.length)
+    .filter((v,i,arr) => !arr.slice(0,i).some(x => x.includes(v)));
+}
+
+function recipesForIngredients(list){
+  if(!list.length) return [];
+  return RECIPES.map(r => {
+    const hits = r.ings.filter(i => list.some(v => i.n.toLowerCase().includes(v))).length;
+    return {r, hits};
+  }).filter(x => x.hits > 0)
+    .sort((a,b) => b.hits - a.hits || a.r.minutes - b.r.minutes)
+    .slice(0, 4);
+}
+
+function recipeLinks(items){
+  return items.map(x => ({label: (x.r ? x.r.emoji + ' ' + x.r.name : x.emoji + ' ' + x.name),
+                          act: `openRecipe('${(x.r || x).id}')`}));
+}
+
+/* ---- Die einzelnen Intents ---- */
+
+function ansSubstitute(t){
+  // längster passender Schlüssel gewinnt, sonst schluckt "butter" die "buttermilch"
+  let hit = null, best = 0;
+  SUBS.forEach(s => s.keys.forEach(k => {
+    if(matchKey(t, k) && k.length > best){ best = k.length; hit = s; }
+  }));
+  if(!hit) return null;
+  return {text: `**Ersatz für ${hit.name}**\n\n${hit.txt}`, src:'Aus dem Küchenwissen'};
+}
+
+function ansCoreTemp(t){
+  const hit = CORE_TEMPS.find(c => c.keys.some(k => matchKey(t, k)));
+  if(!hit) return null;
+  return {text: `**Kerntemperatur ${hit.name}**\n\n${hit.txt}`, src:'Aus dem Küchenwissen'};
+}
+
+function ansOven(t){
+  let m = t.match(/(\d{2,3})\s*(?:°|grad)?\s*c?.*(umluft)/) || t.match(/(umluft).*?(\d{2,3})/);
+  const num = t.match(/(\d{2,3})/);
+  const f = t.match(/(\d{3})\s*(?:°\s*)?f(?:ahrenheit)?\b/);
+  const gas = t.match(/gas(?:stufe)?\s*(\d)/);
+
+  if(gas){
+    const c = OVEN_GAS[parseInt(gas[1],10)];
+    if(c) return {text:`**Gasstufe ${gas[1]}** entspricht etwa **${c} °C** Ober-/Unterhitze (Umluft ca. ${c-20} °C).`, src:'Umrechnung'};
+  }
+  if(f){
+    const c = Math.round((parseInt(f[1],10) - 32) * 5/9 / 5) * 5;
+    return {text:`**${f[1]} °F** sind etwa **${c} °C**.`, src:'Umrechnung'};
+  }
+  if(t.includes('umluft') && num){
+    const v = parseInt(num[1],10);
+    if(t.includes('ober') || t.includes('unterhitze')){
+      return {text:`**${v} °C Ober-/Unterhitze** entsprechen etwa **${v-20} °C Umluft**.\n\nUmluft überträgt Hitze durch die bewegte Luft effektiver, deshalb rund 20 °C weniger. Für mehrere Bleche gleichzeitig ist Umluft die bessere Wahl, für Kuchen und Brot Ober-/Unterhitze.`, src:'Umrechnung'};
+    }
+    return {text:`**${v} °C Umluft** entsprechen etwa **${v+20} °C Ober-/Unterhitze**.`, src:'Umrechnung'};
+  }
+  if((t.includes('ober') && t.includes('hitze')) && num){
+    const v = parseInt(num[1],10);
+    return {text:`**${v} °C Ober-/Unterhitze** entsprechen etwa **${v-20} °C Umluft**.`, src:'Umrechnung'};
+  }
+  return null;
+}
+
+function ansConvert(t){
+  // "3 EL Mehl in Gramm", "wie viel gramm sind 2 tl zucker"
+  const m = t.match(/(\d+[.,]?\d*|eine?n?|halbe)\s*(el|tl|esslöffel|teelöffel|essloeffel|teeloeffel|tassen?)\s*([a-zäöüß]+)?/);
+  if(m){
+    const word = {'ein':1,'eine':1,'einen':1,'halbe':0.5}[m[1]];
+    const n = word !== undefined ? word : parseFloat(m[1].replace(',','.'));
+    const unit = m[2];
+    const ing = (m[3] || '').replace(/n$/,'');
+    const isEL = /el|ess/.test(unit);
+    const isCup = /tasse/.test(unit);
+    const ml = isCup ? 240 : (isEL ? 15 : 5);
+    const key = Object.keys(SPOON_G).find(k => ing && (k.includes(ing) || ing.includes(k)));
+    if(key){
+      const perEL = SPOON_G[key];
+      const g = Math.round(n * perEL * (isCup ? 16 : (isEL ? 1 : 1/3)));
+      const unitLabel = isCup ? (n === 1 ? 'Tasse' : 'Tassen') : unit.toUpperCase();
+      const ingLabel = key.charAt(0).toUpperCase() + key.slice(1);
+      return {text:`**${num2str(n)} ${unitLabel} ${ingLabel}** ≈ **${g} g** (≈ ${Math.round(n*ml)} ml Volumen).\n\nBeim Backen lohnt sich die Waage: Löffelangaben schwanken je nachdem, wie fest man schöpft, um bis zu 30 %.`, src:'Umrechnung'};
+    }
+    return {text:`**1 EL = 15 ml, 1 TL = 5 ml, 1 Tasse ≈ 240 ml.**\n\nBei ${num2str(n)} ${unit.toUpperCase()} sind das etwa ${Math.round(n*ml)} ml. Für Gramm brauche ich die Zutat – Mehl, Zucker und Öl wiegen bei gleichem Volumen sehr unterschiedlich.`, src:'Umrechnung'};
+  }
+  if(hasAny(t, ['el ','esslöffel','teelöffel','tl ','tasse'])){
+    return {text:'**Löffelmaße**\n\n• 1 EL = 15 ml\n• 1 TL = 5 ml\n• 1 Tasse ≈ 240 ml\n\nIn Gramm (gestrichener EL): Mehl 9 g · Zucker 12 g · Butter 15 g · Öl 13 g · Salz 18 g · Honig 21 g.', src:'Umrechnung'};
+  }
+  return null;
+}
+
+function ansCookWith(t, raw){
+  const usePantry = hasAny(t, ['vorrat','vorratsschrank','da habe','zuhause','zu hause']);
+  let ings = findIngredients(raw);
+  if(usePantry) ings = ings.concat(store.pantry.map(p => p.toLowerCase()));
+  if(!ings.length) return null;
+
+  const found = recipesForIngredients(ings);
+  if(!found.length){
+    return {text:`Zu **${ings.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(', ')}** habe ich kein passendes Rezept in der App.\n\nAus fast allem lässt sich aber etwas bauen: Gemüse aufs Blech mit Öl und Salz, Reste in gebratenen Reis, oder ein Eintopf mit Zwiebel, Dose Tomaten und Hülsenfrüchten.`,
+            src:'Aus dem Küchenwissen'};
+  }
+  const cap = w => w.charAt(0).toUpperCase() + w.slice(1);
+  const lines = found.map(x =>
+    `• **${x.r.name}** – ${x.hits} passende ${x.hits === 1 ? 'Zutat' : 'Zutaten'}, ${x.r.minutes} Min`).join('\n');
+  return {
+    text: `Mit **${ings.slice(0,5).map(cap).join(', ')}** passt das hier:\n\n${lines}`,
+    links: recipeLinks(found),
+    src: 'Aus deinen Rezepten'
+  };
+}
+
+function ansRecipeSearch(t){
+  const hit = RECIPES.find(r => t.includes(r.name.toLowerCase()) || t.includes(r.id));
+  if(!hit) return null;
+  return {
+    text: `**${hit.name}** – ${hit.minutes} Minuten, ${hit.level.toLowerCase()}, ${hit.base} Portionen.\n\n${hit.desc}\n\nTipp aus dem Rezept: ${hit.tips[0] || '–'}`,
+    links: [{label:'Rezept öffnen', act:`openRecipe('${hit.id}')`}],
+    src: 'Aus deinen Rezepten'
+  };
+}
+
+function ansProblem(t){
+  const problems = [
+    {k:['zu dünn','zu duenn','zu flüssig','bindet nicht','dickt nicht'], txt:'**Sauce zu dünn**\n\n• Offen weiter einkochen – am wirksamsten, kostet nur Zeit\n• 1 TL Speisestärke in etwas kaltem Wasser anrühren und in die kochende Sauce geben\n• Kalte Butterwürfel außerhalb der Hitze einrühren – bindet und rundet ab\n• Bei Pastasauce: eine Kelle stärkehaltiges Nudelwasser und kräftig schwenken'},
+    {k:['zu salzig','versalzen'], txt:'**Zu salzig**\n\n• Menge vergrößern: mehr Flüssigkeit, Tomaten, Kartoffeln oder Reis dazu\n• Säure und Süße gegensteuern lassen: ein Spritzer Zitrone plus eine Prise Zucker\n• Fett wie Sahne oder Joghurt dämpft die Wahrnehmung\n\nDie rohe Kartoffel als Salzschwamm ist übrigens ein Mythos – sie verdünnt nur.'},
+    {k:['zu scharf'], txt:'**Zu scharf**\n\n• Milchprodukte: Joghurt, Sahne, Kokosmilch – Capsaicin ist fettlöslich\n• Etwas Süße (Zucker, Honig) und Säure (Limette)\n• Stärke dazu: Reis, Brot, Kartoffeln\n\nMehr Wasser hilft nicht, es verteilt die Schärfe nur.'},
+    {k:['angebrannt','verbrannt'], txt:'**Angebrannt**\n\nInhalt sofort in einen neuen Topf umfüllen, **ohne** den Boden abzukratzen – die verbrannten Stellen bleiben zurück. Dann probieren: Wenn der Rauchgeschmack schon durchgezogen ist, retten auch Säure und Süße nichts mehr.'},
+    {k:['klumpen','klümpchen'], txt:'**Klumpen in der Sauce**\n\nDurch ein Sieb passieren oder mit dem Stabmixer glätten. Vorbeugen: gleiche Temperaturen (heiße Flüssigkeit in heiße Mehlschwitze) und Flüssigkeit in kleinen Mengen zugeben, jedes Mal glattrühren.'},
+    {k:['fad','langweilig','schmeckt nach nichts','flach'], txt:'**Schmeckt fad**\n\nDer Reihe nach durchgehen:\n1. **Salz** – fast immer der erste Kandidat\n2. **Säure** – Zitrone oder Essig, weckt flache Gerichte sofort\n3. **Umami** – Sojasauce, Tomatenmark, Parmesan, Miso\n4. **Fett** – ein Löffel Butter oder gutes Öl am Ende\n5. **Frische** – Kräuter, Zwiebelringe, Zitronenabrieb\n\nUnd falls alles stimmt: etwas Knuspriges obendrauf.'},
+    {k:['kleben','klebt an','pappt'], txt:'**Es klebt an**\n\n• Pfanne leer vorheizen, dann erst Fett dazu\n• Gargut trocken tupfen und nicht zu früh bewegen – bei fertiger Kruste löst es sich von selbst\n• Nicht zu viel auf einmal in die Pfanne, sonst tritt Wasser aus'},
+    {k:['zäh','trocken geworden','trockenes fleisch'], txt:'**Fleisch ist zäh oder trocken**\n\nMeist zu heiß oder zu lange gegart. Für kurzgebratenes Fleisch: Kerntemperatur messen und vor dem Ziel vom Herd nehmen, danach ruhen lassen. Zähes Schmorfleisch dagegen braucht das Gegenteil – noch länger bei niedriger Hitze, dann löst sich das Bindegewebe zu Gelatine.'}
+  ];
+  const hit = problems.find(p => p.k.some(k => /\s/.test(k) ? t.includes(k) : (hasWord(t,k) || hasWordStart(t,k))));
+  return hit ? {text: hit.txt, src:'Aus dem Küchenwissen'} : null;
+}
+
+function ansTip(t){
+  const cat = TIPS.find(x => t.includes(x.cat.toLowerCase()));
+  const pool = cat ? TIPS.filter(x => x.cat === cat.cat) : TIPS;
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  return {text:`**${p.t}**\n\n${p.b}`, links:[{label:'Mehr Tipps', act:"switchTab('tips')"}], src:'Tipp · ' + p.cat};
+}
+
+function ansLearn(t){
+  const c = COURSES.find(x => t.includes(x.name.toLowerCase().split(' ')[0]) || x.id === t.trim());
+  if(c) return {text:`**${c.name}**\n\n${c.desc}\n\n${c.lessons.length} Lektionen und ${c.quiz.length} Quizfragen.`,
+                links:[{label:'Kurs öffnen', act:`switchTab('learn');openCourse('${c.id}')`}], src:'Lernbereich'};
+  return {text:`Im Lernbereich gibt es ${COURSES.length} Kurse:\n\n${COURSES.map(x => '• ' + x.name + ' – ' + x.desc).join('\n')}`,
+          links:[{label:'Zum Lernbereich', act:"switchTab('learn')"}], src:'Lernbereich'};
+}
+
+/* Lokale Antwort zusammenstellen */
+function localAnswer(raw){
+  const t = raw.toLowerCase();
+
+  if(hasAny(t, ['statt ','ersatz','anstelle','ohne ','habe kein','hab kein','keine ']) ){
+    const a = ansSubstitute(t); if(a) return a;
+  }
+  if(hasAny(t, ['kerntemperatur','durchgegart','gar ist','wie heiß','wie heiss','innentemperatur'])){
+    const a = ansCoreTemp(t); if(a) return a;
+  }
+  if(hasAny(t, ['umluft','ober','gasstufe','fahrenheit','°f']) || /\d{2,3}\s*(?:°\s*)?f\b/.test(t) || t.includes('grad')){
+    const a = ansOven(t); if(a) return a;
+  }
+  if(hasAny(t, ['wie viel','wieviel','gramm','umrechn',' el ','esslöffel','teelöffel','tasse'])){
+    const a = ansConvert(t); if(a) return a;
+  }
+  {
+    const a = ansRecipeSearch(t); if(a) return a;
+  }
+  {
+    const a = ansProblem(t); if(a) return a;
+  }
+  if(hasAny(t, ['was kann ich','was koche','ich habe','rezept mit','vorrat','übrig','uebrig','reste'])){
+    const a = ansCookWith(t, raw); if(a) return a;
+  }
+  if(hasAny(t, ['tipp','trick','rat '])) return ansTip(t);
+  if(hasAny(t, ['lernen','kurs','technik','üben','ueben'])) return ansLearn(t);
+  if(hasAny(t, ['kerntemperatur','temperatur'])){
+    const a = ansCoreTemp(t); if(a) return a;
+  }
+  {
+    const a = ansSubstitute(t); if(a) return a;
+    const b = ansCookWith(t, raw); if(b) return b;
+  }
+
+  return {
+    text:'Dabei kann ich helfen:\n\n• **Was koche ich?** – nenn mir Zutaten, ich suche passende Rezepte\n• **Ersatzzutaten** – „Ersatz für Buttermilch“\n• **Umrechnen** – Löffel in Gramm, Umluft, Gasstufen, Fahrenheit\n• **Kerntemperaturen** – Geflügel, Rind, Fisch\n• **Rettung** – zu salzig, zu dünn, angebrannt, fad\n• **Technik** – Kurse zu Messer, Hitze, Würzen, Saucen, Teig',
+    links:[{label:'Rezepte ansehen', act:"switchTab('recipes')"}, {label:'Tipp des Tages', act:"switchTab('tips')"}],
+    src: store.settings.apiKey ? 'Offline-Wissen' : 'Offline-Wissen · KI-Schlüssel optional in den Einstellungen'
+  };
+}
+
+/* ---- Optionaler Weg über ein Sprachmodell ---- */
+function buildSystemPrompt(){
+  const cur = state.detailId ? recipeById(state.detailId) : null;
+  const list = RECIPES.map(r => `${r.name} (${r.cat}, ${r.minutes} Min, ${r.diet})`).join('; ');
+  return [
+    'Du bist der Küchen-Assistent der deutschsprachigen App "Kochbuch". Antworte immer auf Deutsch.',
+    'Antworte kurz, konkret und praktisch – höchstens rund 120 Wörter, keine Einleitungsfloskeln.',
+    'Erkläre bei Technikfragen kurz das Warum, damit man es übertragen kann.',
+    'Rezepte in der App: ' + list + '.',
+    'Vorrat des Nutzers: ' + (store.pantry.length ? store.pantry.join(', ') : 'nicht angegeben') + '.',
+    cur ? 'Der Nutzer sieht gerade das Rezept: ' + cur.name + ' – Zutaten: ' +
+          cur.ings.map(i => i.n).join(', ') + '.' : ''
+  ].filter(Boolean).join('\n');
+}
+
+async function apiAnswer(raw){
+  const key = store.settings.apiKey;
+  if(!key) return null;
+  const history = state.chat
+    .filter(m => !m.typing && m.text)
+    .slice(-8)
+    .map(m => ({role: m.role === 'me' ? 'user' : 'assistant', content: m.text}));
+  if(!history.length || history[history.length-1].role !== 'user'){
+    history.push({role:'user', content: raw});
+  }
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({
+      model:'claude-sonnet-5',
+      max_tokens: 700,
+      system: buildSystemPrompt(),
+      messages: history
+    })
+  });
+
+  if(!res.ok){
+    const detail = res.status === 401 ? 'Schlüssel wird abgelehnt.'
+                 : res.status === 429 ? 'Zu viele Anfragen.'
+                 : 'Fehler ' + res.status + '.';
+    throw new Error(detail);
+  }
+  const data = await res.json();
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  return text || null;
+}
+
+async function handleQuestion(raw){
+  state.busy = true;
+  el('sendBtn').disabled = true;
+  state.chat.push({role:'ai', typing:true});
+  renderChat();
+
+  const local = localAnswer(raw);
+  let result = null;
+  let note = '';
+
+  if(store.settings.apiKey){
+    try{
+      const t = await apiAnswer(raw);
+      if(t) result = {text:t, links: local.links, src:'KI-Antwort'};
+    }catch(e){
+      note = '\n\n(KI nicht erreichbar: ' + e.message + ' – hier die Antwort aus dem eingebauten Wissen.)';
+    }
+  }
+
+  state.chat = state.chat.filter(m => !m.typing);
+  const answer = result || local;
+  state.chat.push({role:'ai', text: answer.text + note, links: answer.links || [], src: answer.src});
+  renderChat();
+
+  state.busy = false;
+  el('sendBtn').disabled = false;
+}
+
+/* ==========================================================================
+   EINSTELLUNGEN
+   ========================================================================== */
+function openSettings(){
+  el('settingsOverlay').classList.add('open');
+  el('apiKeyInput').value = store.settings.apiKey || '';
+  renderToggles();
+  renderKeyStatus();
+}
+function closeOnOverlay(e, id){ if(e.target.id === id) el(id).classList.remove('open'); }
+
+function renderToggles(){
+  el('tgSpeak').classList.toggle('on', !!store.settings.speak);
+  el('tgAwake').classList.toggle('on', !!store.settings.awake);
+}
+function toggleSetting(k){
+  store.settings[k] = !store.settings[k];
+  saveStore();
+  renderToggles();
+  if(k === 'speak' && !store.settings.speak && 'speechSynthesis' in window) speechSynthesis.cancel();
+  if(k === 'awake' && !store.settings.awake) releaseWakeLock();
+}
+
+function renderKeyStatus(){
+  const k = store.settings.apiKey;
+  el('keyStatus').textContent = k
+    ? 'Aktiv · ' + k.slice(0,7) + '…' + k.slice(-4)
+    : 'Kein Schlüssel · Assistent antwortet offline';
+}
+function saveApiKey(){
+  const v = el('apiKeyInput').value.trim();
+  store.settings.apiKey = v;
+  saveStore();
+  renderKeyStatus();
+  showToast(v ? 'Schlüssel gespeichert' : 'Schlüssel entfernt');
+}
+function clearApiKey(){
+  store.settings.apiKey = '';
+  el('apiKeyInput').value = '';
+  saveStore();
+  renderKeyStatus();
+  showToast('Schlüssel entfernt');
+}
+
+function resetAll(){
+  if(!confirm('Favoriten, Einkaufsliste, Vorrat und Lernfortschritt löschen?')) return;
+  store.favs = []; store.shopping = []; store.pantry = []; store.progress = {};
+  saveStore();
+  el('settingsOverlay').classList.remove('open');
+  showToast('Zurückgesetzt');
+  switchTab(state.tab);
+}
+
+/* ==========================================================================
+   START
+   ========================================================================== */
+function init(){
+  loadStore();
+  renderChips();
+  renderRecipes();
+  renderSuggestions();
+
+  pushMsg('ai',
+    'Hallo! Ich bin dein Küchen-Assistent.\n\nFrag mich, was du aus deinen Zutaten kochen kannst, wie du etwas ersetzt, wie viel Gramm ein Esslöffel hat – oder wie du ein Gericht rettest, das schiefgegangen ist.',
+    [{label:'Was koche ich heute?', act:"askSuggestion('Was kann ich mit Linsen und Tomaten kochen?')"},
+     {label:'Tipp des Tages', act:"switchTab('tips')"}]);
+
+  // Kochmodus mit Pfeiltasten bedienbar
+  document.addEventListener('keydown', e => {
+    if(!el('cookMode').classList.contains('open')) return;
+    if(e.key === 'ArrowRight') cookNext();
+    if(e.key === 'ArrowLeft') cookPrev();
+    if(e.key === 'Escape') closeCook();
+  });
+
+  // Wake Lock nach Tab-Wechsel erneut anfordern
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && el('cookMode').classList.contains('open')) requestWakeLock();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
