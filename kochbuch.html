@@ -200,7 +200,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<input type="file" id="filePick" accept="image/*" multiple hidden>
+<input type="file" id="filePick" accept="image/*,application/pdf" multiple hidden>
 <input type="file" id="jsonPick" accept="application/json,.json" hidden>
 
 <script>
@@ -2297,15 +2297,9 @@ function openEinstellungen(){ setTab('kueche'); kuecheTab('mehr'); }
    Eigener Anthropic-Schlüssel, direkt aus dem Browser. Ohne Schlüssel wirft
    die Funktion – jede Aufrufstelle hat einen Weg ohne KI.
    ========================================================================== */
-async function kiFrage(text, bilder, maxTokens, system){
+async function kiRoh(zusatz, maxTokens, system){
   const key = store.settings.apiKey;
   if(!key) throw new Error('kein Schlüssel');
-  const inhalt = [];
-  (bilder || []).forEach(b => inhalt.push({
-    type: 'image',
-    source: { type:'base64', media_type: b.typ || 'image/jpeg', data: b.data }
-  }));
-  inhalt.push({ type:'text', text });
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -2315,21 +2309,53 @@ async function kiFrage(text, bilder, maxTokens, system){
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({
       model: 'claude-sonnet-5',
       max_tokens: maxTokens || 1400,
-      system: system || 'Du hilfst in einer deutschsprachigen Koch-App. Antworte auf Deutsch, knapp und praktisch.',
-      messages: [{ role:'user', content: inhalt }]
-    })
+      system: system || 'Du hilfst in einer deutschsprachigen Koch-App. Antworte auf Deutsch, knapp und praktisch.'
+    }, zusatz))
   });
   if(!res.ok){
     throw new Error(res.status === 401 ? 'Schlüssel wird abgelehnt'
       : res.status === 429 ? 'Zu viele Anfragen'
       : res.status === 400 ? 'Anfrage abgelehnt'
+      : res.status === 413 ? 'Datei zu groß'
       : 'Fehler ' + res.status);
   }
-  const d = await res.json();
+  return res.json();
+}
+
+function nurText(d){
   return (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+}
+
+/* Anhänge: Bilder und PDFs (ganzseitige iPhone-Screenshots sind PDFs) */
+function anhangBlock(a){
+  return a.kind === 'pdf'
+    ? { type:'document', source:{ type:'base64', media_type:'application/pdf', data:a.data } }
+    : { type:'image',    source:{ type:'base64', media_type:a.typ || 'image/jpeg', data:a.data } };
+}
+
+async function kiFrage(text, anhaenge, maxTokens, system){
+  const inhalt = (anhaenge || []).map(anhangBlock);
+  inhalt.push({ type:'text', text });
+  const d = await kiRoh({ messages: [{ role:'user', content: inhalt }] }, maxTokens, system);
+  return nurText(d);
+}
+
+/* Seite von der Adresse holen – der Abruf läuft auf den Anthropic-Servern,
+   die App selbst darf fremde Seiten nicht laden. */
+async function kiVonSeite(text, maxTokens){
+  const messages = [{ role:'user', content:[{ type:'text', text }] }];
+  for(let runde = 0; runde < 4; runde++){
+    const d = await kiRoh({
+      messages,
+      tools: [{ type:'web_fetch_20260209', name:'web_fetch', max_uses: 3 }]
+    }, maxTokens, 'Du liest Rezepte von Webseiten aus und gibst sie als JSON zurück. Antworte auf Deutsch.');
+    if(d.stop_reason === 'pause_turn'){ messages.push({ role:'assistant', content: d.content }); continue; }
+    return nurText(d);
+  }
+  throw new Error('Der Abruf hat zu lange gedauert');
 }
 
 /* Bild verkleinern, damit der Speicher nicht vollläuft */
@@ -2348,6 +2374,63 @@ function bildVerkleinern(file, maxKante, qualitaet){
         c.height = Math.round(img.height * f);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         ok(c.toDataURL('image/jpeg', qualitaet || 0.72));
+      };
+      img.src = leser.result;
+    };
+    leser.readAsDataURL(file);
+  });
+}
+
+function dateiLesen(file){
+  return new Promise((ok, fail) => {
+    const leser = new FileReader();
+    leser.onerror = () => fail(new Error('Datei nicht lesbar'));
+    leser.onload = () => ok(leser.result);
+    leser.readAsDataURL(file);
+  });
+}
+
+/* Ein langer Screenshot, auf 1400 Pixel Gesamthöhe geschrumpft, ist nicht mehr
+   lesbar. Deshalb: auf lesbare Breite bringen und in überlappende Stücke schneiden. */
+function bildInStuecke(file, maxBreite, stueckHoehe, maxStuecke){
+  return new Promise((ok, fail) => {
+    const leser = new FileReader();
+    leser.onerror = () => fail(new Error('Bild nicht lesbar'));
+    leser.onload = () => {
+      const img = new Image();
+      img.onerror = () => fail(new Error('Bild nicht lesbar'));
+      img.onload = () => {
+        const breite = Math.min(img.width, maxBreite || 1100);
+        const f = breite / img.width;
+        const hoehe = Math.round(img.height * f);
+        const hProStueck = stueckHoehe || 1400;
+        const ueberlappung = 120;
+
+        if(hoehe <= hProStueck * 1.15){
+          const c = document.createElement('canvas');
+          c.width = breite; c.height = hoehe;
+          c.getContext('2d').drawImage(img, 0, 0, breite, hoehe);
+          ok([c.toDataURL('image/jpeg', 0.82)]);
+          return;
+        }
+
+        const stuecke = [];
+        const grenze = maxStuecke || 6;
+        const schritt = hProStueck - ueberlappung;
+        const anzahl = Math.min(grenze, Math.ceil(hoehe / schritt));
+        // Passt der Screenshot nicht in die erlaubten Stücke, etwas gröber schneiden
+        const echteHoehe = anzahl >= grenze ? Math.ceil(hoehe / grenze) + ueberlappung : hProStueck;
+
+        for(let i = 0; i < anzahl; i++){
+          const oben = i * (echteHoehe - ueberlappung);
+          const h = Math.min(echteHoehe, hoehe - oben);
+          if(h < 60) break;
+          const c = document.createElement('canvas');
+          c.width = breite; c.height = h;
+          c.getContext('2d').drawImage(img, 0, oben / f, img.width, h / f, 0, 0, breite, h);
+          stuecke.push(c.toDataURL('image/jpeg', 0.82));
+        }
+        ok(stuecke);
       };
       img.src = leser.result;
     };
@@ -2383,7 +2466,7 @@ function renderNeu(){
       </div>
     </div>
     <div class="pad" style="padding-top:12px;">${
-      m === 'form' ? formHtml() : m === 'text' ? textHtml() : m === 'bild' ? bildHtml() : wahlHtml()
+      m === 'form' ? formHtml() : m === 'text' ? textHtml() : m === 'bild' ? bildHtml() : m === 'link' ? linkHtml() : wahlHtml()
     }</div>
     <div class="btm" style="height:calc(40px + env(safe-area-inset-bottom))"></div>`;
 }
@@ -2412,7 +2495,8 @@ function wahlHtml(){
     <div class="muted" style="margin:8px 0 22px;">Such dir den bequemsten Weg aus – ändern kannst du danach alles.</div>
     ${karte('<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 7l3 3"/>', 'Selbst eintippen', 'Zutaten und Schritte im Formular', "neuModus('form')")}
     ${karte('<rect x="8" y="3" width="9" height="13" rx="2"/><path d="M16 8h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1"/>', 'Text einfügen', 'Kopiertes Rezept wird zerlegt', "neuModus('text')")}
-    ${karte('<rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.4"/><path d="M8 6l1.2-2h5.6L16 6"/>', 'Screenshots einfügen', store.settings.apiKey ? 'Webseite oder Kochbuchseite abfotografieren' : 'Braucht deinen KI-Schlüssel', "neuModus('bild')")}`;
+    ${karte('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4L11 6.6"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0L5 12.6a4.5 4.5 0 0 0 6.4 6.4L13 17.4"/>', 'Link einfügen', 'Rezeptseite, Blog, Zeitung', "neuModus('link')")}
+    ${karte('<rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.4"/><path d="M8 6l1.2-2h5.6L16 6"/>', 'Bilder oder PDF einfügen', store.settings.apiKey ? 'Auch ganzseitige Screenshots vom iPhone' : 'Braucht deinen KI-Schlüssel', "neuModus('bild')")}`;
 }
 
 function neuModus(m){
@@ -2529,6 +2613,7 @@ function entwurfSichern(){
 function fotoWaehlen(){
   const inp = $('filePick');
   inp.multiple = false;
+  inp.accept = 'image/*';
   inp.onchange = async () => {
     const f = inp.files && inp.files[0];
     inp.value = '';
@@ -2560,7 +2645,7 @@ async function textImport(){
   try{
     let e = null;
     if(store.settings.apiKey){
-      try{ e = await kiRezept('Hier ist ein Rezept als Text:\n\n' + txt.slice(0, 6000), null); }
+      try{ e = await kiRezept('Hier ist ein Rezept als Text:\n\n' + txt.slice(0, 6000)); }
       catch(err){ toast('KI nicht erreichbar – ich nehme die einfache Erkennung'); }
     }
     if(!e) e = textZuRezept(txt);
@@ -2601,41 +2686,114 @@ function textZuRezept(txt){
   return e;
 }
 
-/* ---- Screenshots ---- */
+/* ---- Link ---- */
+function linkHtml(){
+  return `
+    <h1 class="title" style="font-size:30px;">Link einfügen</h1>
+    <div class="muted" style="margin:8px 0 16px;">Die Adresse einer Rezeptseite. Den Abruf übernehmen die Anthropic-Server – die App selbst darf fremde Seiten nicht laden.</div>
+    ${store.settings.apiKey ? '' : `<div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:500;">Dafür fehlt der KI-Schlüssel</div>
+      <div class="hint" style="margin-top:4px;">Trag ihn unter Küche › Mehr ein.</div>
+      <button class="btn sm" style="margin-top:11px;" onclick="openEinstellungen()">Zu den Einstellungen</button></div>`}
+    <input class="field" id="lFeld" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://www.chefkoch.de/rezepte/…"
+      onkeydown="if(event.key==='Enter')linkImport()">
+    <button class="btn ${store.settings.apiKey ? 'accent' : ''} wide big" style="margin-top:14px;" id="lBtn" ${store.settings.apiKey ? '' : 'disabled'} onclick="linkImport()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
+      Rezept von der Seite holen</button>
+    <div id="lFehler"></div>
+    <div class="hint" style="margin-top:14px; line-height:1.55;">
+      Bei TikTok und Instagram klappt der Abruf oft nicht: Beide sperren automatische Zugriffe aus und liefern den Text erst per Skript nach. Wenn es scheitert, sind Screenshots der zuverlässige Weg – am besten von der Bildunterschrift und den Stellen mit eingeblendeten Zutaten.
+    </div>`;
+}
+
+function istVideoSeite(u){ return /tiktok\.com|instagram\.com|youtube\.com|youtu\.be|facebook\.com/i.test(u); }
+
+async function linkImport(){
+  const feld = $('lFeld');
+  let url = (feld.value || '').trim();
+  if(!url){ toast('Bitte eine Adresse einsetzen'); return; }
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+  const btn = $('lBtn');
+  btn.innerHTML = '<span class="spin"></span> Seite wird gelesen …';
+  btn.disabled = true;
+  $('lFehler').innerHTML = '';
+
+  try{
+    entwurf = await kiRezept(
+      'Öffne diese Seite und lies das Rezept vollständig aus: ' + url +
+      (istVideoSeite(url) ? '\nEs ist eine Videoplattform – das Rezept steht meist in der Beschreibung unter dem Video.' : ''),
+      null, url);
+    state.neuModus = 'form';
+    renderNeu();
+    toast('Bitte kurz prüfen und sichern');
+  }catch(e){
+    btn.disabled = false;
+    btn.innerHTML = 'Nochmal versuchen';
+    $('lFehler').innerHTML = `
+      <div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-top:14px;">
+        <div style="font-size:14px; font-weight:500;">Von dieser Seite kam kein Rezept</div>
+        <div class="hint" style="margin-top:4px;">${esc(e.message)}${istVideoSeite(url) ? ' – bei Videoplattformen ist das leider häufig.' : ''}</div>
+        <button class="btn sm" style="margin-top:11px;" onclick="neuModus('bild')">Stattdessen Screenshots einfügen</button>
+      </div>`;
+  }
+}
+
+/* ---- Bilder und PDF ---- */
 function bildHtml(){
   const b = state.bilder || [];
+  const teile = b.reduce((n, x) => n + (x.stuecke || 1), 0);
   return `
-    <h1 class="title" style="font-size:30px;">Screenshots einfügen</h1>
-    <div class="muted" style="margin:8px 0 16px;">Mach Screenshots der Rezeptseite oder fotografiere die Kochbuchseite – die KI baut daraus ein Rezept.</div>
+    <h1 class="title" style="font-size:30px;">Bilder oder PDF</h1>
+    <div class="muted" style="margin:8px 0 14px;">Screenshots der Rezeptseite, Fotos der Kochbuchseite – oder ein ganzseitiger Screenshot vom iPhone, den Safari als PDF sichert.</div>
     ${store.settings.apiKey ? '' : `<div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-bottom:16px;">
       <div style="font-size:14px; font-weight:500;">Dafür fehlt der KI-Schlüssel</div>
       <div class="hint" style="margin-top:4px;">Bilder lesen kann nur ein Sprachmodell. Trag deinen Schlüssel unter Küche › Mehr ein.</div>
       <button class="btn sm" style="margin-top:11px;" onclick="openEinstellungen()">Zu den Einstellungen</button></div>`}
+
     <div style="display:flex; gap:9px; flex-wrap:wrap;">
-      ${b.map((x, i) => `<div style="width:62px; height:84px; border-radius:8px; background:center/cover url(${x.url}); position:relative;">
+      ${b.map((x, i) => `<div style="width:62px; height:84px; border-radius:8px; position:relative; ${x.kind === 'pdf'
+        ? 'background:var(--raised); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;'
+        : 'background:center/cover url(' + x.url + ');'}">
+        ${x.kind === 'pdf' ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.6"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span style="font-size:9px; color:var(--muted);">PDF</span>` : ''}
+        ${x.stuecke > 1 ? `<span style="position:absolute; bottom:3px; right:3px; background:var(--solid); color:var(--on-solid); font-size:9px; padding:2px 5px; border-radius:5px;">${x.stuecke}×</span>` : ''}
         <button onclick="bildWeg(${i})" style="position:absolute; top:-5px; right:-5px; width:19px; height:19px; border-radius:50%; background:var(--solid); color:var(--on-solid); font-size:11px;">✕</button></div>`).join('')}
       <button style="width:62px; height:84px; border-radius:8px; border:1px dashed var(--box); display:flex; align-items:center; justify-content:center;" onclick="bilderWaehlen()">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       </button>
     </div>
+
     <button class="btn ${b.length && store.settings.apiKey ? 'accent' : ''} wide big" style="margin-top:20px;" id="bBtn" ${b.length && store.settings.apiKey ? '' : 'disabled'} onclick="bildImport()">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
       Rezept daraus erstellen</button>
-    ${b.length ? `<div class="hint" style="margin-top:9px; text-align:center;">${b.length} ${b.length === 1 ? 'Bild' : 'Bilder'}</div>` : ''}`;
+    ${b.length ? `<div class="hint" style="margin-top:9px; text-align:center;">${b.length} ${b.length === 1 ? 'Datei' : 'Dateien'}${teile > b.length ? ' · ' + teile + ' Ausschnitte' : ''}</div>` : ''}
+    <div id="bFehler"></div>
+    <div class="hint" style="margin-top:16px; line-height:1.55;">Am meisten bringt: die Bildunterschrift mit der Zutatenliste und die Stellen, an denen Mengen eingeblendet sind. Lange Screenshots zerlege ich automatisch, damit die Schrift lesbar bleibt.</div>`;
 }
 
 function bilderWaehlen(){
   const inp = $('filePick');
   inp.multiple = true;
+  inp.accept = 'image/*,application/pdf,.pdf';
   inp.onchange = async () => {
     const files = Array.from(inp.files || []);
     inp.value = '';
     state.bilder = state.bilder || [];
-    for(const f of files.slice(0, 4)){
+    for(const f of files.slice(0, 8)){
+      if(state.bilder.length >= 8) break;
       try{
-        const url = await bildVerkleinern(f, 1400, 0.8);
-        state.bilder.push({ url, data: url.split(',')[1], typ:'image/jpeg' });
-      }catch(e){ /* Bild überspringen */ }
+        if(f.type === 'application/pdf' || /\.pdf$/i.test(f.name)){
+          if(f.size > 4.5 * 1024 * 1024){ toast('Das PDF ist zu groß (über 4,5 MB)'); continue; }
+          const dataUrl = await dateiLesen(f);
+          state.bilder.push({ kind:'pdf', data: dataUrl.split(',')[1], typ:'application/pdf', name: f.name, stuecke: 1 });
+        }else{
+          const stuecke = await bildInStuecke(f, 1100, 1400, 6);
+          state.bilder.push({
+            kind:'bild', url: stuecke[0], typ:'image/jpeg', stuecke: stuecke.length,
+            teile: stuecke.map(u => u.split(',')[1]), data: stuecke[0].split(',')[1]
+          });
+        }
+      }catch(e){ toast('Eine Datei konnte nicht gelesen werden'); }
     }
     renderNeu();
   };
@@ -2643,31 +2801,53 @@ function bilderWaehlen(){
 }
 function bildWeg(i){ state.bilder.splice(i, 1); renderNeu(); }
 
+/* Aus den ausgewählten Dateien die Anhänge für die Anfrage bauen */
+function anhaengeBauen(){
+  const raus = [];
+  (state.bilder || []).forEach(x => {
+    if(x.kind === 'pdf') raus.push({ kind:'pdf', data: x.data, typ:'application/pdf' });
+    else (x.teile || [x.data]).forEach(d => raus.push({ kind:'bild', data: d, typ:'image/jpeg' }));
+  });
+  return raus.slice(0, 12);
+}
+
 async function bildImport(){
   const btn = $('bBtn');
   btn.innerHTML = '<span class="spin"></span> Wird gelesen …';
   btn.disabled = true;
+  $('bFehler').innerHTML = '';
   try{
-    entwurf = await kiRezept('Auf diesen Bildern steht ein Rezept. Lies es vollständig aus.', state.bilder);
+    entwurf = await kiRezept('Auf diesen Bildern oder Seiten steht ein Rezept. Lies es vollständig aus.', anhaengeBauen());
     state.bilder = [];
     state.neuModus = 'form';
     renderNeu();
     toast('Bitte kurz prüfen und sichern');
   }catch(e){
     btn.disabled = false;
-    btn.textContent = 'Rezept daraus erstellen';
-    toast('Hat nicht geklappt: ' + e.message);
+    btn.textContent = 'Nochmal versuchen';
+    $('bFehler').innerHTML = `
+      <div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-top:14px;">
+        <div style="font-size:14px; font-weight:500;">Daraus konnte ich kein Rezept lesen</div>
+        <div class="hint" style="margin-top:4px;">${esc(e.message)}. Hilft meistens: näher heranzoomen, damit die Schrift größer ist – oder die Zutatenliste getrennt fotografieren.</div>
+        <button class="btn sm" style="margin-top:11px;" onclick="neuModus('text')">Stattdessen Text einfügen</button>
+      </div>`;
   }
 }
 
 /* Gemeinsamer Weg für Text und Bild: KI liefert JSON, wir bauen den Entwurf */
-async function kiRezept(auftrag, bilder){
-  const antwort = await kiFrage(
+async function kiRezept(auftrag, anhaenge, vonSeite){
+  const auftragText = 
     auftrag + '\n\nGib das Rezept als reines JSON zurück, ohne Erklärung und ohne Code-Zaun:\n' +
     '{"name":"","minutes":30,"base":4,"basis":"eines von: ' + BASIS_LIST.join('|') + '","aufwand":"nebenbei|konzentriert|Projekt","preis":1,' +
     '"ings":[{"q":250,"u":"g","n":"rote Linsen","note":"abgespült"}],"steps":[{"t":"Schritttext","timer":20}]}\n' +
-    'timer ist die Minutenzahl, die in dem Schritt gewartet wird, sonst 0. q ist eine Zahl ohne Einheit. Behalte die Sprache des Originals bei, übersetze ins Deutsche wenn nötig.',
-    bilder, 2500);
+    'timer ist die Minutenzahl, die in dem Schritt gewartet wird, sonst 0. q ist eine Zahl ohne Einheit. Behalte die Sprache des Originals bei, übersetze ins Deutsche wenn nötig. ' +
+    'Findest du kein Rezept, antworte nur mit dem Wort KEINRezept.';
+
+  const antwort = vonSeite
+    ? await kiVonSeite(auftragText, 2500)
+    : await kiFrage(auftragText, anhaenge, 2500);
+
+  if(/KEINRezept/i.test(antwort) && !/\{/.test(antwort)) throw new Error('Dort stand kein Rezept');
   const roh = (antwort.match(/\{[\s\S]*\}/) || [''])[0];
   const j = JSON.parse(roh);
   const e = leererEntwurf();
