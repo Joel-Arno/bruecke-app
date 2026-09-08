@@ -36,6 +36,20 @@
   }
 
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  button, .row, .card, .chip, .act{ touch-action:manipulation; }
+
+  /* Alles, was man antippen kann, gibt sofort nach – ohne Warten auf das Neuzeichnen */
+  button, .row, .card, .chip, .act, .thumb{
+    transition: transform .09s ease-out, opacity .09s ease-out, background-color .12s ease-out, border-color .12s ease-out;
+  }
+  button:active, .row:active, .act:active{ transform: scale(.975); opacity: .82; }
+  .card:active{ transform: scale(.99); }
+  .chip:active{ transform: scale(.94); }
+  .btn:active, .icon-btn:active, .fab:active{ transform: scale(.94); opacity: .9; }
+  @media (prefers-reduced-motion: reduce){
+    button, .row, .card, .chip, .act, .thumb, .view, .sheet{ transition: none !important; }
+    button:active, .row:active, .card:active, .chip:active, .act:active, .btn:active, .icon-btn:active, .fab:active{ transform: none; }
+  }
   html,body{
     margin:0; padding:0; height:100%; overflow:hidden;
     font-family:'Archivo',system-ui,-apple-system,sans-serif;
@@ -51,7 +65,8 @@
   /* ===== Ansichten ===== */
   .views{ flex:1 1 auto; position:relative; overflow:hidden; }
   .view{ position:absolute; inset:0; overflow-y:auto; -webkit-overflow-scrolling:touch; display:none; }
-  .view.on{ display:block; }
+  .view.on{ display:block; animation: rein .18s ease-out; }
+  @keyframes rein{ from{ opacity:.3; transform: translateY(6px); } to{ opacity:1; transform:none; } }
   .pad{ padding:0 22px; }
   .top{ padding:max(44px,env(safe-area-inset-top)) 22px 0; }
   .btm{ height:calc(26px + env(safe-area-inset-bottom)); }
@@ -126,7 +141,10 @@
   .scrim{ position:fixed; inset:0; background:var(--scrim); z-index:90; display:none; }
   .scrim.on{ display:block; }
   .sheet{ position:fixed; left:0; right:0; bottom:0; max-height:88vh; background:var(--bg); border-radius:22px 22px 0 0; z-index:91; display:none; flex-direction:column; box-shadow:0 -10px 30px -12px rgba(0,0,0,.45); }
-  .sheet.on{ display:flex; }
+  .sheet.on{ display:flex; animation: hoch .22s cubic-bezier(.22,.7,.3,1); }
+  @keyframes hoch{ from{ transform: translateY(28px); opacity:.6; } to{ transform:none; opacity:1; } }
+  .scrim.on{ animation: auf .18s ease-out; }
+  @keyframes auf{ from{ opacity:0; } to{ opacity:1; } }
   .grip{ width:38px; height:4px; border-radius:2px; background:var(--box); margin:10px auto 4px; }
   .sheet-head{ padding:8px 22px 14px; display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--line); }
   .sheet-head .serif{ font-size:23px; }
@@ -137,6 +155,9 @@
   .cook{ position:fixed; inset:0; z-index:80; background:var(--bg); display:none; flex-direction:column; padding:max(44px,env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); }
   .cook.on{ display:flex; }
   .cook-step{ font-family:'Instrument Serif',Georgia,serif; font-size:clamp(23px,6.4vw,29px); line-height:1.32; }
+  .cook-step.wechsel{ animation: rein .2s ease-out; }
+  .warte{ margin-top:18px; border-radius:14px; background:var(--raised); padding:13px 15px; animation: rein .25s ease-out; }
+  .warte b{ font-weight:600; }
   .plan-bar{ display:flex; gap:3px; }
   .plan-bar i{ height:6px; border-radius:3px; background:var(--line); display:block; }
   .timer-box{ display:flex; align-items:center; gap:14px; background:var(--raised); border-radius:16px; padding:14px 16px; margin-top:22px; }
@@ -999,6 +1020,70 @@ const ABTEILUNG_WORTE = {
 const MENGEN_RE = /^\s*(\d+[.,]?\d*)\s*(kg|g|ml|l|el|tl|dosen?|dose|packungen?|pack|stück|stk|bund|zehen?|prisen?|köpfe?|scheiben?)?\s+(.*)$/i;
 
 /* ==========================================================================
+   MOTIVE
+   Gezeichnete Bilder statt Fotos: skalieren sauber, laden sofort, funktionieren
+   offline und passen zur Farbfläche des Gerichts.
+   ========================================================================== */
+const MOTIVE = {
+  nudeln:
+    '<path d="M8 34c0-2 3-3 8-3h16c5 0 8 1 8 3"/><path d="M4 34h40c0 6-8 10-20 10S4 40 4 34z"/>' +
+    '<path d="M14 30c2-5 6-7 10-7s8 2 10 7"/><path d="M18 30c1-3 3-4 6-4s5 1 6 4"/>' +
+    '<circle cx="24" cy="21" r="2.4"/>',
+  schale:
+    '<path d="M6 26h36c0 9-8 15-18 15S6 35 6 26z"/><path d="M4 26h40"/>' +
+    '<path d="M17 18c0-3 2-3 2-6M24 16c0-3 2-3 2-6M31 18c0-3 2-3 2-6"/>',
+  kuerbis:
+    '<path d="M24 16c8 0 14 6 14 14s-6 14-14 14-14-6-14-14 6-14 14-14z"/>' +
+    '<path d="M17 17c-2 4-3 8-3 13s1 9 3 13M31 17c2 4 3 8 3 13s-1 9-3 13M24 16v28"/>' +
+    '<path d="M24 16v-5M24 11c3 0 5-2 5-5"/>',
+  blech:
+    '<rect x="5" y="16" width="38" height="22" rx="4"/><path d="M10 16v-3M38 16v-3"/>' +
+    '<circle cx="15" cy="27" r="3.5"/><circle cx="24" cy="24" r="3"/><circle cx="32" cy="29" r="3.5"/>' +
+    '<path d="M20 31c2 1 4 1 6 0"/>',
+  pfanne:
+    '<path d="M6 22h26c0 8-6 13-13 13S6 30 6 22z"/><path d="M32 24h10"/>' +
+    '<circle cx="19" cy="25" r="4.5"/><circle cx="19" cy="25" r="1.6"/>',
+  topf:
+    '<rect x="9" y="20" width="30" height="19" rx="4"/><path d="M5 20h38"/>' +
+    '<path d="M5 24H2M43 24h3"/><path d="M18 14c0-3 2-3 2-6M28 14c0-3 2-3 2-6"/>',
+  pfannkuchen:
+    '<ellipse cx="24" cy="32" rx="15" ry="5"/><path d="M9 32c0-3 7-5 15-5s15 2 15 5"/>' +
+    '<path d="M9 27c0-3 7-5 15-5s15 2 15 5"/><path d="M9 22c0-3 7-5 15-5s15 2 15 5"/>' +
+    '<path d="M24 13c2 0 3-1 3-3"/>',
+  brot:
+    '<path d="M8 30c0-8 7-13 16-13s16 5 16 13c0 5-7 8-16 8S8 35 8 30z"/>' +
+    '<path d="M15 22l4 12M24 20l3 15M32 22l3 12"/>',
+  kuchen:
+    '<path d="M10 24h28v12a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3z"/>' +
+    '<path d="M10 24c0-3 6-5 14-5s14 2 14 5"/><path d="M10 30c4 2 10 2 14 0s10-2 14 0"/>' +
+    '<path d="M24 19v-4M24 15c2 0 3-1 3-3"/>',
+  salat:
+    '<path d="M7 25h34c0 8-7 14-17 14S7 33 7 25z"/><path d="M5 25h38"/>' +
+    '<path d="M14 25c-1-6 3-9 8-9M24 25c0-7 4-10 9-8M19 25c1-4 4-6 8-6"/>',
+  steak:
+    '<path d="M12 18c8-3 18-3 24 2 5 4 4 12-2 15-7 4-18 3-23-2-4-4-3-12 1-15z"/>' +
+    '<path d="M18 24c4-2 9-2 13 1"/><path d="M17 30c4-2 10-2 14 1"/>',
+  wok:
+    '<path d="M5 24h38c0 9-8 15-19 15S5 33 5 24z"/><path d="M43 26l4-4"/>' +
+    '<path d="M16 17c0-3 2-3 2-6M24 15c0-3 2-3 2-6M32 17c0-3 2-3 2-6"/>' +
+    '<circle cx="19" cy="30" r="1.6"/><circle cx="26" cy="32" r="1.6"/><circle cx="31" cy="29" r="1.6"/>'
+};
+
+/* Welches Motiv zu welchem Rezept */
+const MOTIV_REZEPT = {
+  aglio:'nudeln', dal:'schale', ofengemuese:'blech', ruehrei:'pfanne', kuerbissuppe:'kuerbis',
+  curry:'schale', tomatensauce:'topf', pfannkuchen:'pfannkuchen', risotto:'schale',
+  kartoffelsalat:'salat', chili:'topf', steak:'steak', brot:'brot', schokokuchen:'kuchen',
+  reispfanne:'wok', griechischer:'salat'
+};
+
+/* Ersatzweise nach Grundzutat – gilt für eigene Rezepte */
+const MOTIV_BASIS = {
+  'Nudeln':'nudeln', 'Reis':'schale', 'Kartoffeln':'topf', 'Brot':'brot', 'Gemüse':'blech',
+  'Hülsenfrüchte':'schale', 'Fleisch':'steak', 'Eier':'pfanne', 'Süßes':'kuchen', 'Sonstiges':'topf'
+};
+
+/* ==========================================================================
    SPEICHER
    Alles liegt lokal im Browser. Die Sicherungsdatei ist der Weg nach außen.
    ========================================================================== */
@@ -1012,7 +1097,8 @@ const store = {
   progress: {},          // kursId -> {lessons:[], best:0}
   own: [],               // eigene Rezepte
   cooked: [],            // [{id, at}]
-  settings: { theme:'auto', speak:false, voice:false, awake:true, apiKey:'', onboarded:false, lastBackup:0, sinceBackup:0 }
+  settings: { theme:'auto', speak:false, voice:false, awake:true, apiKey:'', onboarded:false, lastBackup:0, sinceBackup:0, inVorrat:true, vorratAbziehen:true },
+  verbrauch: { ein:0, aus:0, anfragen:0, seit:0 }
 };
 
 function load(){
@@ -1020,17 +1106,35 @@ function load(){
     const raw = localStorage.getItem(KEY);
     if(!raw) return;
     const d = JSON.parse(raw);
-    ['favs','shopping','pantry','own','cooked'].forEach(k => { if(Array.isArray(d[k])) store[k] = d[k]; });
-    ['plan','progress'].forEach(k => { if(d[k] && typeof d[k] === 'object') store[k] = d[k]; });
-    if(d.settings) Object.assign(store.settings, d.settings);
-  }catch(e){ /* beschädigter Speicher: mit Standardwerten weiter */ }
+    uebernehmen(d);
+  }catch(e){
+    // Hauptspeicher beschädigt – auf die Sicherungskopie zurückfallen
+    try{
+      const kopie = localStorage.getItem(KEY + '.kopie');
+      if(kopie){ uebernehmen(JSON.parse(kopie)); toast('Aus der Sicherungskopie wiederhergestellt'); }
+    }catch(e2){ /* dann eben mit Standardwerten */ }
+  }
+}
+
+function uebernehmen(d){
+  ['favs','shopping','pantry','own','cooked'].forEach(k => { if(Array.isArray(d[k])) store[k] = d[k]; });
+  ['plan','progress'].forEach(k => { if(d[k] && typeof d[k] === 'object') store[k] = d[k]; });
+  if(d.settings) Object.assign(store.settings, d.settings);
+  if(d.verbrauch) Object.assign(store.verbrauch, d.verbrauch);
 }
 
 let saveWarned = false;
+let kopieZeit = 0;
 function save(count){
   if(count) store.settings.sinceBackup = (store.settings.sinceBackup || 0) + 1;
   try{
-    localStorage.setItem(KEY, JSON.stringify(store));
+    const text = JSON.stringify(store);
+    localStorage.setItem(KEY, text);
+    // Höchstens jede Minute eine zweite Kopie – falls der Hauptstand je kaputtgeht
+    if(Date.now() - kopieZeit > 60000){
+      kopieZeit = Date.now();
+      try{ localStorage.setItem(KEY + '.kopie', text); }catch(e){ /* Platz reicht nicht, egal */ }
+    }
   }catch(e){
     // Voll (meist durch Fotos) – einmal ehrlich sagen statt still zu verlieren
     if(!saveWarned){
@@ -1071,7 +1175,25 @@ function farbe(r){
 function thumbStyle(r, size){
   const s = size || 62;
   if(r.foto) return `width:${s}px;height:${s}px;flex:0 0 ${s}px;background-image:url(${r.foto})`;
-  return `width:${s}px;height:${s}px;flex:0 0 ${s}px;background:${farbe(r)}`;
+  return `width:${s}px;height:${s}px;flex:0 0 ${s}px;background:${farbe(r)};display:flex;align-items:center;justify-content:center`;
+}
+
+/* Gezeichnetes Motiv des Gerichts – entfällt, wenn ein eigenes Foto da ist */
+function motivPfad(r){
+  return MOTIVE[MOTIV_REZEPT[r.id] || MOTIV_BASIS[meta(r).basis] || 'topf'];
+}
+function motivSvg(r, size, deckkraft){
+  if(r.foto) return '';
+  const s = Math.round((size || 62) * 0.6);
+  return `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none" stroke="rgba(46,28,12,${deckkraft || .58})" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none">${motivPfad(r)}</svg>`;
+}
+
+/* Beim Neuzeichnen die Scrollposition halten – sonst springt die Ansicht nach oben */
+function haltePosition(id, zeichnen){
+  const v = $(id);
+  const y = v ? v.scrollTop : 0;
+  zeichnen();
+  if(v) v.scrollTop = y;
 }
 
 /* Mengen auf die gewählte Portionszahl umrechnen */
@@ -1287,7 +1409,8 @@ function renderHeute(){
 
     <div class="pad" style="margin-top:15px;">
       <div class="card">
-        <div style="height:70px; background:${v.foto ? 'center/cover url(' + v.foto + ')' : farbe(v)}; display:flex; align-items:flex-end; padding:10px 14px;">
+        <div style="height:76px; background:${v.foto ? 'center/cover url(' + v.foto + ')' : farbe(v)}; display:flex; align-items:flex-end; padding:10px 14px; position:relative; overflow:hidden;">
+          <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%);">${motivSvg(v, 96, .42)}</div>
           <span style="background:var(--surface); color:var(--ink); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:5px 11px; border-radius:20px;">${store.plan[heute()] ? 'Für heute geplant' : 'Vorschlag für heute'}</span>
         </div>
         <div style="padding:13px 15px 15px; display:flex; align-items:center; gap:12px;">
@@ -1327,17 +1450,17 @@ function renderHeute(){
 
     <div class="pad">
       <div class="sect">Zuletzt gekocht</div>
-      <div style="display:flex; gap:14px;">
+      <div style="display:flex; gap:12px;">
         ${zuletzt.map(r => `
-          <button style="width:54px; text-align:center;" onclick="openRezept('${r.id}')">
-            <div style="border-radius:50%; ${thumbStyle(r, 54)}; background-size:cover;"></div>
-            <div style="font-size:10.5px; color:var(--soft); margin-top:6px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${esc(r.name)}</div>
+          <button style="width:66px; text-align:center; display:flex; flex-direction:column; align-items:center;" onclick="openRezept('${r.id}')" title="${esc(r.name)}">
+            <div style="border-radius:50%; ${thumbStyle(r, 54)}; background-size:cover;">${motivSvg(r, 54, .5)}</div>
+            <div class="kreis-name" style="font-size:10.5px; color:var(--soft); margin-top:6px; line-height:1.25; max-width:66px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(r.name)}</div>
           </button>`).join('')}
-        <button style="width:54px; text-align:center;" onclick="openNeu()">
+        <button style="width:66px; text-align:center; display:flex; flex-direction:column; align-items:center;" onclick="openNeu()">
           <div style="width:54px; height:54px; border-radius:50%; border:1px dashed var(--box); display:flex; align-items:center; justify-content:center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           </div>
-          <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.2;">Neues<br>Rezept</div>
+          <div style="font-size:10.5px; color:var(--muted); margin-top:6px; line-height:1.25;">Neu</div>
         </button>
       </div>
     </div>
@@ -1442,8 +1565,10 @@ function renderListe(){
   if(!ziel) return;
   const list = gefilterteRezepte();
   if(!list.length){
-    ziel.innerHTML = `<div class="empty">Nichts gefunden.<br>Andere Suche oder Filter zurücksetzen?
-      ${aktiveFilter() ? '<div style="margin-top:16px;"><button class="btn sm" onclick="filterReset(); renderRezepte()">Filter zurücksetzen</button></div>' : ''}</div>`;
+    const suchtext = state.suche.trim();
+    ziel.innerHTML = `<div class="empty">Nichts gefunden.
+      ${suchtext ? `<div style="margin-top:18px;"><button class="btn sm" onclick="openNeu(null,'name',${JSON.stringify(suchtext).replace(/"/g, '&quot;')})">„${esc(suchtext)}" schreiben lassen</button></div>` : '<br>Andere Suche oder Filter zurücksetzen?'}
+      ${aktiveFilter() ? '<div style="margin-top:10px;"><button class="btn sm" onclick="filterReset(); renderRezepte()">Filter zurücksetzen</button></div>' : ''}</div>`;
     return;
   }
   ziel.innerHTML = `<div class="rows">` + list.map(r => {
@@ -1451,7 +1576,7 @@ function renderListe(){
     const treffer = state.filter.nurVorrat ? vorratTreffer(r) + ' von ' + r.ings.length + ' da' : null;
     return `
     <button class="row" onclick="openRezept('${r.id}')">
-      <div class="thumb" style="${thumbStyle(r)}; background-size:cover;">${r.eigen ? '<span class="mine">MEIN</span>' : ''}</div>
+      <div class="thumb" style="${thumbStyle(r)}; background-size:cover;">${motivSvg(r)}${r.eigen ? '<span class="mine">MEIN</span>' : ''}</div>
       <div class="grow">
         <div class="nm">${esc(r.name)}</div>
         <div class="sub">${treffer || esc(m.basis) + ' · ' + esc(m.aufwand) + ' · ' + preisText(m.preis)}</div>
@@ -1517,19 +1642,23 @@ function openRezept(id){
 
 function portionen(d){
   state.portionen = Math.min(20, Math.max(1, state.portionen + d));
-  renderRezept();
+  haltePosition('vRezept', renderRezept);
 }
 function hakZutat(i){
   const id = state.rezeptId;
-  state.ab[id][i] = !state.ab[id][i];
-  renderRezept();
+  const an = state.ab[id][i] = !state.ab[id][i];
+  // Nur die eine Zeile anfassen – ein kompletter Neuaufbau wirkt hakelig
+  const zeile = document.querySelector('#vRezept [data-zutat="' + i + '"]');
+  if(!zeile){ renderRezept(); return; }
+  zeile.querySelector('.check').classList.toggle('on', an);
+  zeile.querySelector('.zut-name').classList.toggle('strike', an);
 }
 function merken(id){
   const i = store.favs.indexOf(id);
   if(i >= 0){ store.favs.splice(i, 1); toast('Nicht mehr gemerkt'); }
   else { store.favs.push(id); toast('Gemerkt'); }
   save(true);
-  renderRezept();
+  haltePosition('vRezept', renderRezept);
 }
 
 function renderRezept(){
@@ -1544,7 +1673,8 @@ function renderRezept(){
                 : (state.portionen === 1 ? 'Portion' : 'Portionen');
 
   $('vRezept').innerHTML = `
-    <div style="height:226px; background:${r.foto ? 'center/cover url(' + r.foto + ')' : farbe(r)}; position:relative;">
+    <div style="height:226px; background:${r.foto ? 'center/cover url(' + r.foto + ')' : farbe(r)}; position:relative; overflow:hidden;">
+      <div style="position:absolute; right:20px; top:calc(max(46px, env(safe-area-inset-top)) + 38px);">${motivSvg(r, 100, .45)}</div>
       <button class="icon-btn" style="position:absolute; top:max(46px,env(safe-area-inset-top)); left:20px; background:var(--surface); border-color:transparent;" onclick="setTab(state.tab)" aria-label="Zurück">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>
       </button>
@@ -1601,12 +1731,12 @@ function renderRezept(){
           const ab = state.ab[r.id][idx];
           const e = ersatz[idx];
           return `
-          <button style="display:flex; gap:13px; align-items:center; padding:9px 0; width:100%; text-align:left;" onclick="hakZutat(${idx})">
+          <button data-zutat="${idx}" style="display:flex; gap:13px; align-items:center; padding:9px 0; width:100%; text-align:left;" onclick="hakZutat(${idx})">
             <span class="check ${ab ? 'on' : ''}">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
             </span>
             <span style="color:var(--accent); min-width:66px; font-size:14.5px;">${esc(zutatZeile(i, faktor))}</span>
-            <span style="flex:1; font-size:14.5px;" class="${ab ? 'strike' : ''}">
+            <span style="flex:1; font-size:14.5px;" class="zut-name ${ab ? 'strike' : ''}">
               ${esc(i.n)}${e ? ` <span style="color:var(--accent); font-size:12.5px;">→ ${esc(e)}</span>` : ''}
               ${i.note ? `<span style="display:block; font-size:12px; color:var(--muted); margin-top:2px;">${esc(i.note)}</span>` : ''}
             </span>
@@ -1685,6 +1815,16 @@ function kochenStarten(id){
 
 function kochenBeenden(){
   const fertig = cook && cook.teile.map(t => t.id);
+  const verbraucht = [];
+  (fertig || []).forEach(id => {
+    const r = rez(id);
+    if(r) r.ings.forEach(i => {
+      const name = i.n.split(',')[0].trim();
+      const imVorrat = store.pantry.find(p => p.toLowerCase() === name.toLowerCase() ||
+        name.toLowerCase().includes(p.toLowerCase()));
+      if(imVorrat && !verbraucht.includes(imVorrat)) verbraucht.push(imVorrat);
+    });
+  });
   $('cook').classList.remove('on');
   wachLoslassen();
   hoerenStop();
@@ -1694,8 +1834,41 @@ function kochenBeenden(){
   });
   cook = null;
   save(true);
-  toast('Guten Appetit!');
   setTab(state.tab);
+
+  if(verbraucht.length && store.settings.vorratAbziehen !== false){
+    openSheet('Guten Appetit!', '', `
+      <div class="muted" style="margin-bottom:14px;">Was davon ist jetzt aufgebraucht? Tipp an, was aus dem Vorrat verschwinden soll.</div>
+      <div id="verbrauchtListe">
+        ${verbraucht.map((v, i) => `
+          <button class="row" style="width:100%;" onclick="verbrauchtHaken(${i})">
+            <span class="check" id="vh${i}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>
+            <span class="grow" style="font-size:15px;">${esc(v)}</span>
+          </button>`).join('')}
+      </div>`,
+      `<div style="display:flex; gap:9px;">
+        <button class="btn" style="flex:1;" onclick="closeSheet()">Alles bleibt</button>
+        <button class="btn solid" style="flex:1;" onclick="verbrauchtEntfernen()">Aus dem Vorrat streichen</button>
+      </div>`);
+    state.verbraucht = verbraucht;
+    state.verbrauchtGewaehlt = {};
+  }else{
+    toast('Guten Appetit!');
+  }
+}
+
+function verbrauchtHaken(i){
+  state.verbrauchtGewaehlt[i] = !state.verbrauchtGewaehlt[i];
+  const el = $('vh' + i);
+  if(el) el.classList.toggle('on', !!state.verbrauchtGewaehlt[i]);
+}
+function verbrauchtEntfernen(){
+  const raus = (state.verbraucht || []).filter((_, i) => state.verbrauchtGewaehlt[i]);
+  if(!raus.length){ closeSheet(); toast('Nichts geändert'); return; }
+  store.pantry = store.pantry.filter(p => !raus.includes(p));
+  save(true);
+  closeSheet();
+  toast(raus.length + (raus.length === 1 ? ' Zutat' : ' Zutaten') + ' aus dem Vorrat');
 }
 
 async function wachHalten(){
@@ -1732,6 +1905,56 @@ function hoerenStop(){ if(hoeren){ try{ hoeren.onend = null; hoeren.stop(); }cat
 
 function aktivesTeil(){ return cook ? cook.teile[cook.aktiv] : null; }
 function kurzName(n){ return n.length > 18 ? n.slice(0, 17).trim() + '…' : n; }
+
+/* Kommt die Zutat in diesem Text vor? Grob, aber gut genug für Vorschläge. */
+function zutatImText(ing, text){
+  const t = text.toLowerCase();
+  const n = ing.n.toLowerCase().split(',')[0].trim();
+  if(t.includes(n)) return true;
+  return n.split(' ').filter(w => w.length > 4).some(w => t.includes(w));
+}
+
+/* Was kann man tun, während der Timer läuft? */
+function warteVorschlaege(r, idx){
+  const bisher  = r.steps.slice(0, idx + 1).map(s => s.t).join(' ');
+  const spaeter = r.steps.slice(idx + 1).map(s => s.t).join(' ');
+  const weg = r.ings
+    .filter(i => zutatImText(i, bisher) && !zutatImText(i, spaeter) && !i.fix)
+    .filter(i => !/salz|pfeffer|wasser/i.test(i.n));   // steht sowieso griffbereit
+  const naechster = r.steps[idx + 1];
+  const vorbereiten = naechster ? r.ings.filter(i => zutatImText(i, naechster.t)) : [];
+  return { weg, vorbereiten, naechster };
+}
+
+function warteHtml(r, idx){
+  const v = warteVorschlaege(r, idx);
+  const teile = [];
+
+  if(v.weg.length){
+    const namen = v.weg.map(i => i.n.split(',')[0].trim());
+    const zeigen = namen.slice(0, 4);
+    const rest = namen.length - zeigen.length;
+    teile.push(
+      '<div style="display:flex; gap:11px; align-items:flex-start; margin-bottom:' + (v.vorbereiten.length ? '12px' : '0') + ';">' +
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 17px; margin-top:2px;"><path d="M4 9h16l-1.6 9.2a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8z"/><path d="M9 9V6.5a3 3 0 0 1 6 0V9"/></svg>' +
+      '<div><b>Zurück in den Schrank</b><br><span style="color:var(--soft);">' +
+      esc(zeigen.join(', ')) + (rest > 0 ? ' und ' + rest + ' weitere' : '') +
+      ' – wird nicht mehr gebraucht</span></div></div>');
+  }
+
+  if(v.vorbereiten.length){
+    const namen = v.vorbereiten.map(i => i.n.split(',')[0].trim()).slice(0, 4);
+    teile.push(
+      '<div style="display:flex; gap:11px; align-items:flex-start;">' +
+      '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" style="flex:0 0 17px; margin-top:2px;"><path d="M5 12h14M12 5v14"/></svg>' +
+      '<div><b>Schon bereitstellen</b><br><span style="color:var(--soft);">' +
+      esc(namen.join(', ')) + ' für Schritt ' + (idx + 2) + '</span></div></div>');
+  }
+
+  if(!teile.length) return '';
+  return '<div class="warte" style="font-size:13.5px; line-height:1.5;">' +
+    '<div class="kicker" style="font-size:10px; margin-bottom:9px;">Währenddessen</div>' + teile.join('') + '</div>';
+}
 
 function renderCook(){
   if(!cook || !$('cook').classList.contains('on')) return;
@@ -1777,7 +2000,13 @@ function renderCook(){
       </div>
     </div>`;
 
-  $('cookStep').textContent = s.t;
+  const stepEl = $('cookStep');
+  if(stepEl.textContent !== s.t){
+    stepEl.textContent = s.t;
+    stepEl.classList.remove('wechsel');
+    void stepEl.offsetWidth;
+    stepEl.classList.add('wechsel');
+  }
   renderCookTimer();
 
   $('cookFoot').innerHTML = `
@@ -1811,7 +2040,7 @@ function renderCookTimer(){
     box.innerHTML = `<div class="timer-box">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4.2l2.6 1.6M9.5 3h5"/></svg>
       <div style="flex:1;"><div class="t">${restZeit(lauf)}</div><div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${esc(lauf.label)}</div></div>
-      <button class="btn sm" onclick="timerStop('${lauf.id}')">Stopp</button></div>`;
+      <button class="btn sm" onclick="timerStop('${lauf.id}')">Stopp</button></div>` + warteHtml(r, teil.idx);
   }else if(s.timer){
     box.innerHTML = `<div style="margin-top:22px;">
       <button class="btn" onclick="timerStart(${s.timer}, ${JSON.stringify(r.name + ' · Schritt ' + (teil.idx + 1)).replace(/"/g, '&quot;')}, '${r.id}')">
@@ -1857,6 +2086,7 @@ function openZweitesRezept(){
     <div class="rows">
       ${list.slice(0, 12).map(r => `
         <button class="row" onclick="zweitesRezept('${r.id}')">
+          <div class="thumb" style="${thumbStyle(r, 44)}; background-size:cover; border-radius:8px;">${motivSvg(r, 44, .5)}</div>
           <div class="grow"><div class="nm" style="font-size:18px;">${esc(r.name)}</div><div class="sub">${esc(meta(r).basis)}</div></div>
           <div class="num"><b>${r.minutes}</b><span>MIN</span></div>
         </button>`).join('')}
@@ -2043,11 +2273,19 @@ function hakEinkauf(id){
   const s = store.shopping.find(x => x.id === id);
   if(!s) return;
   s.done = !s.done; s.neu = false;
-  save(true); renderKueche(); renderTabbar();
+
+  // Abgehaktes wandert in den Vorrat – das ist der Moment, in dem du es hast
+  if(s.done && store.settings.inVorrat !== false){
+    const drin = store.pantry.some(p => p.toLowerCase() === s.txt.toLowerCase());
+    if(!drin){ store.pantry.push(s.txt); toast(s.txt + ' → in den Vorrat'); }
+  }
+  save(true);
+  haltePosition('vKueche', renderKueche);
+  renderTabbar();
 }
 function loeschEinkauf(id){
   store.shopping = store.shopping.filter(s => s.id !== id);
-  save(true); renderKueche(); renderTabbar();
+  save(true); haltePosition('vKueche', renderKueche); renderTabbar();
 }
 function erledigteWeg(){
   store.shopping = store.shopping.filter(s => !s.done);
@@ -2106,7 +2344,7 @@ function wocheHtml(){
           <div class="serif" style="font-size:19px; line-height:1.1;">${t.d.getDate()}.</div>
         </div>
         ${r ? `
-          <button style="width:44px; height:44px; flex:0 0 44px; border-radius:8px; ${r.foto ? 'background:center/cover url(' + r.foto + ')' : 'background:' + farbe(r)}" onclick="openRezept('${r.id}')"></button>
+          <button style="width:44px; height:44px; flex:0 0 44px; border-radius:8px; ${r.foto ? 'background:center/cover url(' + r.foto + ')' : 'background:' + farbe(r) + ';display:flex;align-items:center;justify-content:center'}" onclick="openRezept('${r.id}')">${motivSvg(r, 44, .5)}</button>
           <button style="flex:1; text-align:left;" onclick="openRezept('${r.id}')">
             <div style="font-size:15px; font-weight:500;">${esc(r.name)}</div>
             <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${r.minutes} Min · ${r.base} Portionen</div>
@@ -2128,7 +2366,7 @@ function openPlanTag(key){
   const list = alleRezepte().sort((a, b) => a.minutes - b.minutes);
   openSheet('Gericht wählen', '', `<div class="rows">${list.map(r => `
     <button class="row" onclick="planSetzen('${key}','${r.id}')">
-      <div class="thumb" style="${thumbStyle(r, 44)}; background-size:cover; border-radius:8px;"></div>
+      <div class="thumb" style="${thumbStyle(r, 44)}; background-size:cover; border-radius:8px;">${motivSvg(r, 44, .5)}</div>
       <div class="grow"><div class="nm" style="font-size:18px;">${esc(r.name)}</div><div class="sub">${esc(meta(r).basis)} · ${preisText(meta(r).preis)}</div></div>
       <div class="num"><b>${r.minutes}</b><span>MIN</span></div>
     </button>`).join('')}</div>`);
@@ -2194,6 +2432,10 @@ function mehrHtml(){
         `<button class="chip ${s.theme === k ? 'on' : ''}" onclick="setTheme('${k}')">${l}</button>`).join('')}
     </div>
 
+    <div class="lbl">Vorrat</div>
+    ${schalter('inVorrat', 'Abgehaktes in den Vorrat', 'Was du auf der Einkaufsliste abhakst, landet im Vorratsschrank.')}
+    ${schalter('vorratAbziehen', 'Nach dem Kochen aufräumen', 'Fragt nach dem Kochen, ob die verbrauchten Zutaten aus dem Vorrat sollen.')}
+
     <div class="lbl">Kochmodus</div>
     ${schalter('speak', 'Schritte vorlesen', 'Liest jeden Schritt laut vor.')}
     ${schalter('voice', 'Sprachbefehle', '„weiter“ und „zurück“ ohne Anfassen. Nicht jeder Browser kann das.')}
@@ -2207,9 +2449,10 @@ function mehrHtml(){
       ${s.apiKey ? '<button class="btn sm" onclick="keyWeg()">Entfernen</button>' : ''}
     </div>
     <div class="hint" style="margin-top:8px;">${s.apiKey ? 'Aktiv · ' + esc(s.apiKey.slice(0, 7)) + '…' + esc(s.apiKey.slice(-4)) : 'Kein Schlüssel hinterlegt'}</div>
+    ${verbrauchHtml()}
 
     <div class="lbl">Sicherung</div>
-    <div class="hint" style="margin-bottom:10px;">Schreibt Rezepte, Vorrat, Liste, Plan und Fortschritt in eine Datei${s.lastBackup ? ' · zuletzt ' + new Date(s.lastBackup).toLocaleDateString('de-DE') : ''}.</div>
+    <div class="hint" style="margin-bottom:10px;">Alles wird sofort bei jeder Änderung gespeichert, dazu läuft eine zweite Kopie im Hintergrund mit. Beides liegt in Safari – die Datei hier ist der Weg nach außen${s.lastBackup ? ' · zuletzt gesichert am ' + new Date(s.lastBackup).toLocaleDateString('de-DE') : ''}.</div>
     <div style="display:flex; gap:9px;">
       <button class="btn sm" onclick="sicherungSchreiben()">Sichern</button>
       <button class="btn sm" onclick="$('jsonPick').click()">Wiederherstellen</button>
@@ -2219,6 +2462,32 @@ function mehrHtml(){
     <button class="btn sm" onclick="allesZuruecksetzen()">Alle eigenen Daten löschen</button>
     <div class="hint" style="margin-top:18px; padding-bottom:10px;">Kochbuch läuft ohne Internet. Verbindung braucht nur der Assistent mit hinterlegtem Schlüssel – und die Schriften beim ersten Öffnen.</div>`;
 }
+/* Was die App bisher an KI-Anfragen verbraucht hat */
+function verbrauchHtml(){
+  const v = store.verbrauch;
+  if(!v.anfragen) return store.settings.apiKey
+    ? '<div class="hint" style="margin-top:10px;">Noch keine KI-Anfrage gestellt.</div>' : '';
+  const euro = verbrauchEuro();
+  const betrag = euro < 0.01 ? 'unter 1 Cent' : euro.toFixed(2).replace('.', ',') + ' $';
+  const seit = v.seit ? new Date(v.seit).toLocaleDateString('de-DE', { day:'numeric', month:'long' }) : '';
+  return `
+    <div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-top:12px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between;">
+        <span style="font-size:14px; font-weight:500;">Bisher verbraucht</span>
+        <span style="font-size:18px; font-weight:600; letter-spacing:-.4px; color:var(--accent);">${esc(betrag)}</span>
+      </div>
+      <div class="hint" style="margin-top:6px;">${v.anfragen} ${v.anfragen === 1 ? 'Anfrage' : 'Anfragen'}${seit ? ' seit ' + esc(seit) : ''} · ${Math.round((v.ein + v.aus) / 1000)}k Bausteine</div>
+      <div class="hint" style="margin-top:8px;">Das ist die Rechnung dieser App zum Listenpreis, nicht dein Kontostand. Verbindlich ist die Anzeige in der Claude Console.</div>
+      <button class="btn sm" style="margin-top:11px;" onclick="verbrauchZuruecksetzen()">Zähler zurücksetzen</button>
+    </div>`;
+}
+function verbrauchZuruecksetzen(){
+  store.verbrauch = { ein:0, aus:0, anfragen:0, seit:0 };
+  save();
+  haltePosition('vKueche', renderKueche);
+  toast('Zähler zurückgesetzt');
+}
+
 function schalter(k, titel, text){
   const an = !!store.settings[k];
   return `
@@ -2232,10 +2501,11 @@ function schalter(k, titel, text){
 function toggle(k){
   store.settings[k] = !store.settings[k];
   save();
+  if(k === 'inVorrat' || k === 'vorratAbziehen'){ haltePosition('vKueche', renderKueche); return; }
   if(k === 'awake' && !store.settings.awake) wachLoslassen();
   if(k === 'speak' && !store.settings.speak && 'speechSynthesis' in window) speechSynthesis.cancel();
   if(k === 'voice'){ store.settings.voice ? (cook && hoerenStart()) : hoerenStop(); }
-  renderKueche();
+  haltePosition('vKueche', renderKueche);
 }
 function setTheme(t){ store.settings.theme = t; save(); applyTheme(); renderKueche(); }
 function keySpeichern(){
@@ -2297,6 +2567,25 @@ function openEinstellungen(){ setTab('kueche'); kuecheTab('mehr'); }
    Eigener Anthropic-Schlüssel, direkt aus dem Browser. Ohne Schlüssel wirft
    die Funktion – jede Aufrufstelle hat einen Weg ohne KI.
    ========================================================================== */
+/* Preise pro Million Bausteine für claude-sonnet-5 – Stand Juni 2026 */
+const PREIS_EIN = 2.0, PREIS_AUS = 10.0;
+
+/* Mitzählen, was die Anfragen kosten. Das ist die Rechnung der App, nicht
+   der Kontostand – der steht in der Console. */
+function verbrauchZaehlen(usage){
+  if(!usage) return;
+  const v = store.verbrauch;
+  if(!v.seit) v.seit = Date.now();
+  v.ein += usage.input_tokens || 0;
+  v.aus += usage.output_tokens || 0;
+  v.anfragen += 1;
+  save();
+}
+function verbrauchEuro(){
+  const v = store.verbrauch;
+  return v.ein / 1e6 * PREIS_EIN + v.aus / 1e6 * PREIS_AUS;
+}
+
 async function kiRoh(zusatz, maxTokens, system){
   const key = store.settings.apiKey;
   if(!key) throw new Error('kein Schlüssel');
@@ -2322,7 +2611,9 @@ async function kiRoh(zusatz, maxTokens, system){
       : res.status === 413 ? 'Datei zu groß'
       : 'Fehler ' + res.status);
   }
-  return res.json();
+  const d = await res.json();
+  verbrauchZaehlen(d.usage);
+  return d;
 }
 
 function nurText(d){
@@ -2447,9 +2738,10 @@ function leererEntwurf(){
   return { name:'', minutes:30, base:2, basis:'Gemüse', aufwand:'nebenbei', preis:1, foto:'', ings:[], steps:[], desc:'', level:'Einfach', diet:'', tags:[] };
 }
 
-function openNeu(id){
+function openNeu(id, modus, vorgabe){
   entwurf = id ? JSON.parse(JSON.stringify(rez(id))) : null;
-  state.neuModus = id ? 'form' : 'wahl';
+  state.nameVorgabe = vorgabe || '';
+  state.neuModus = id ? 'form' : (modus || 'wahl');
   state.bilder = [];
   $('fab').classList.add('hide');
   showView('vNeu');
@@ -2466,7 +2758,7 @@ function renderNeu(){
       </div>
     </div>
     <div class="pad" style="padding-top:12px;">${
-      m === 'form' ? formHtml() : m === 'text' ? textHtml() : m === 'bild' ? bildHtml() : m === 'link' ? linkHtml() : wahlHtml()
+      m === 'form' ? formHtml() : m === 'text' ? textHtml() : m === 'bild' ? bildHtml() : m === 'link' ? linkHtml() : m === 'name' ? nameHtml() : wahlHtml()
     }</div>
     <div class="btm" style="height:calc(40px + env(safe-area-inset-bottom))"></div>`;
 }
@@ -2495,6 +2787,7 @@ function wahlHtml(){
     <div class="muted" style="margin:8px 0 22px;">Such dir den bequemsten Weg aus – ändern kannst du danach alles.</div>
     ${karte('<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 7l3 3"/>', 'Selbst eintippen', 'Zutaten und Schritte im Formular', "neuModus('form')")}
     ${karte('<rect x="8" y="3" width="9" height="13" rx="2"/><path d="M16 8h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1"/>', 'Text einfügen', 'Kopiertes Rezept wird zerlegt', "neuModus('text')")}
+    ${karte('<path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/>', 'Gericht nennen', 'Name reicht – die KI schreibt das Rezept', "neuModus('name')")}
     ${karte('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4L11 6.6"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0L5 12.6a4.5 4.5 0 0 0 6.4 6.4L13 17.4"/>', 'Link einfügen', 'Rezeptseite, Blog, Zeitung', "neuModus('link')")}
     ${karte('<rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.4"/><path d="M8 6l1.2-2h5.6L16 6"/>', 'Bilder oder PDF einfügen', store.settings.apiKey ? 'Auch ganzseitige Screenshots vom iPhone' : 'Braucht deinen KI-Schlüssel', "neuModus('bild')")}`;
 }
@@ -2684,6 +2977,65 @@ function textZuRezept(txt){
   const summe = e.steps.reduce((s, x) => s + (x.timer || 0), 0);
   if(summe) e.minutes = Math.max(10, Math.min(240, summe + 10));
   return e;
+}
+
+/* ---- Gericht nur nach Namen ---- */
+function nameHtml(){
+  const vorschlaege = ['Lasagne', 'Butter Chicken', 'Kaiserschmarrn', 'Ramen', 'Gulasch', 'Shakshuka'];
+  return `
+    <h1 class="title" style="font-size:30px;">Gericht nennen</h1>
+    <div class="muted" style="margin:8px 0 16px;">Schreib hin, was du essen willst – die KI baut daraus ein vollständiges Rezept mit Mengen und Schritten. Ändern kannst du danach alles.</div>
+    ${store.settings.apiKey ? '' : `<div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:500;">Dafür fehlt der KI-Schlüssel</div>
+      <div class="hint" style="margin-top:4px;">Trag ihn unter Küche › Mehr ein.</div>
+      <button class="btn sm" style="margin-top:11px;" onclick="openEinstellungen()">Zu den Einstellungen</button></div>`}
+    <input class="field" id="nFeld" placeholder="z. B. Lasagne, vegetarisch" value="${esc(state.nameVorgabe || '')}"
+      onkeydown="if(event.key==='Enter')nameImport()">
+    <div class="chips wrap" style="margin-top:12px;">
+      ${vorschlaege.map(v => `<button class="chip" onclick="$('nFeld').value='${v}'; nameImport()">${v}</button>`).join('')}
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+      <div><div style="font-size:14px;">Portionen</div><div class="hint" style="margin-top:2px;">für wie viele soll es reichen</div></div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <button class="icon-btn" style="width:32px;height:32px;flex:0 0 32px;font-size:17px;" onclick="namePortionen(-1)">−</button>
+        <span class="serif" style="font-size:20px; min-width:20px; text-align:center;">${state.namePortionen || 4}</span>
+        <button class="icon-btn" style="width:32px;height:32px;flex:0 0 32px;font-size:17px;" onclick="namePortionen(1)">+</button>
+      </div>
+    </div>
+    <button class="btn ${store.settings.apiKey ? 'accent' : ''} wide big" style="margin-top:16px;" id="nBtn" ${store.settings.apiKey ? '' : 'disabled'} onclick="nameImport()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
+      Rezept schreiben lassen</button>
+    <div id="nFehler"></div>
+    <div class="hint" style="margin-top:14px; line-height:1.55;">Die KI erfindet das Rezept aus ihrem Wissen – es ist kein Original von einer bestimmten Quelle. Schau es vor dem Kochen einmal durch.</div>`;
+}
+function namePortionen(d){
+  state.namePortionen = Math.min(12, Math.max(1, (state.namePortionen || 4) + d));
+  renderNeu();
+}
+
+async function nameImport(){
+  const feld = $('nFeld');
+  const wunsch = (feld.value || '').trim();
+  if(wunsch.length < 3){ toast('Schreib kurz hin, was es sein soll'); return; }
+  const btn = $('nBtn');
+  btn.innerHTML = '<span class="spin"></span> Wird geschrieben …';
+  btn.disabled = true;
+  $('nFehler').innerHTML = '';
+  try{
+    entwurf = await kiRezept(
+      'Schreibe ein alltagstaugliches Rezept für: ' + wunsch + '.\n' +
+      'Für ' + (state.namePortionen || 4) + ' Portionen, mit Zutaten, die man in einem normalen Supermarkt bekommt. ' +
+      'Realistische Mengen, klare Schritte in der Reihenfolge, und bei Wartezeiten die Minuten im Timer-Feld.');
+    state.neuModus = 'form';
+    renderNeu();
+    toast('Bitte durchsehen und sichern');
+  }catch(e){
+    btn.disabled = false;
+    btn.textContent = 'Nochmal versuchen';
+    $('nFehler').innerHTML = `<div style="border-radius:12px; background:var(--raised); padding:13px 15px; margin-top:14px;">
+      <div style="font-size:14px; font-weight:500;">Hat nicht geklappt</div>
+      <div class="hint" style="margin-top:4px;">${esc(e.message)}</div></div>`;
+  }
 }
 
 /* ---- Link ---- */
@@ -3539,7 +3891,13 @@ function init(){
 
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'visible' && cook) wachHalten();
+    // Beim Wegschalten sofort sichern – iOS beendet Seiten im Hintergrund gern
+    if(document.visibilityState === 'hidden') save();
   });
+  window.addEventListener('pagehide', () => save());
+
+  // Zusätzlich alle 30 Sekunden, falls einmal ein Speichern ausgelassen wurde
+  setInterval(() => save(), 30000);
 
   if(!store.settings.onboarded) setTimeout(willkommen, 400);
 }
