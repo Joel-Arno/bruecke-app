@@ -1358,6 +1358,7 @@ const state = {
   filter: { basis:null, aufwand:null, zeit:null, anlass:null, preis:null, sort:'zeit', nurEigene:false, nurFavs:false, nurVorrat:false },
   kuecheTab: 'einkauf',
   chat: [],
+  wunsch: '',           // Wünsche beim Erstellen per KI
   lernen: null,
   quiz: null,
   busy: false
@@ -1879,6 +1880,12 @@ function renderRezept(){
         <div><div class="num plain" style="text-align:left;"><b>${r.steps.length}</b><span>SCHRITTE</span></div></div>
         <div><div class="num plain" style="text-align:left;"><b>${preisText(m.preis)}</b><span>PRO PORTION</span></div></div>
       </div>
+
+      ${r.wunsch ? `<div style="display:flex; gap:10px; align-items:flex-start; margin-top:16px; background:var(--raised); border-radius:12px; padding:11px 13px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 16px; margin-top:1px;"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
+        <div><div style="font-size:13px; font-weight:500;">Nach deinen Wünschen angepasst</div>
+        <div class="hint" style="margin-top:2px;">${esc(r.wunsch)}</div></div>
+      </div>` : ''}
 
       <div style="display:flex; gap:9px; margin-top:18px;">
         <button class="btn sm" style="flex:1;" onclick="aufEinkaufsliste('${r.id}')">
@@ -2915,8 +2922,80 @@ function bildInStuecke(file, maxBreite, stueckHoehe, maxStuecke){
    ========================================================================== */
 let entwurf = null;   // {id?, name, minutes, base, basis, aufwand, preis, foto, ings, steps}
 
+/* ==========================================================================
+   WÜNSCHE
+   Ein Feld, das auf jedem KI-Weg mitläuft: „ohne Karotten", „mit Sahne",
+   „vegetarisch". Der Text geht als Auftrag an die KI und bleibt danach als
+   Notiz am Rezept stehen, damit später klar ist, warum es abweicht.
+   ========================================================================== */
+const WUNSCH_CHIPS = ['ohne Karotten', 'mit Sahne', 'vegetarisch', 'schärfer', 'weniger Aufwand', 'ohne Backofen'];
+
+function wunschHtml(hinweis){
+  const w = state.wunsch || '';
+  return `
+    <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--line);">
+      <div style="font-size:14px;">Wünsche <span class="hint" style="font-weight:400;">– optional</span></div>
+      <div class="hint" style="margin:3px 0 10px;">${esc(hinweis || 'Was rein soll, was weg soll, wie es sein soll.')}</div>
+      <input class="field" id="wunschFeld" placeholder="z. B. ohne Karotten, mit Sahne, nicht scharf"
+        value="${esc(w)}" oninput="state.wunsch = this.value; wunschChipsAuffrischen()">
+      <div class="chips wrap" id="wunschChips" style="margin-top:10px;">${wunschChipsHtml()}</div>
+    </div>`;
+}
+
+function wunschChipsHtml(){
+  const w = (state.wunsch || '').toLowerCase();
+  return WUNSCH_CHIPS.map(c => {
+    const drin = w.includes(c.toLowerCase());
+    return `<button class="chip${drin ? ' on' : ''}" onclick="wunschChip(${JSON.stringify(c).replace(/"/g, '&quot;')})">${drin ? '✓' : '+'} ${esc(c)}</button>`;
+  }).join('');
+}
+
+function wunschChipsAuffrischen(){
+  const z = $('wunschChips');
+  if(z) z.innerHTML = wunschChipsHtml();
+}
+
+/* Antippen fügt den Wunsch hinzu oder nimmt ihn wieder heraus */
+function wunschChip(text){
+  const teile = (state.wunsch || '').split(',').map(t => t.trim()).filter(Boolean);
+  const i = teile.findIndex(t => t.toLowerCase() === text.toLowerCase());
+  if(i >= 0) teile.splice(i, 1); else teile.push(text);
+  state.wunsch = teile.join(', ');
+  const f = $('wunschFeld');
+  if(f) f.value = state.wunsch;
+  wunschChipsAuffrischen();
+}
+
+/* Was davon an die KI geht – leer, wenn nichts drinsteht */
+function wunschAuftrag(einleitung){
+  const w = (state.wunsch || '').trim();
+  if(!w) return '';
+  return '\n\n' + (einleitung || 'Halte dich dabei an diese Wünsche') + ': ' + w + '.\n' +
+    'Sie haben Vorrang: Zutaten, die ausgeschlossen sind, kommen weder in die Liste noch in die Schritte, ' +
+    'und was gewünscht ist, baust du sinnvoll ein und passt Mengen und Schritte daran an. ' +
+    'Geht ein Wunsch beim Gericht nicht, nimm die nächstbeste Lösung und schreib sie in den betroffenen Schritt.';
+}
+
+function wunschVermerkWeg(){
+  if(!entwurf) return;
+  formLesen();
+  const w = entwurf.wunsch;
+  entwurf.wunsch = '';
+  if(w) entwurf.desc = (entwurf.desc || '').replace('Angepasst: ' + w + '.', '').trim();
+  renderNeu();
+}
+
+/* Nach dem Erzeugen am Entwurf vermerken */
+function wunschVermerken(e){
+  const w = (state.wunsch || '').trim();
+  if(!w || !e) return e;
+  e.wunsch = w;
+  e.desc = (e.desc ? e.desc + ' ' : '') + 'Angepasst: ' + w + '.';
+  return e;
+}
+
 function leererEntwurf(){
-  return { name:'', minutes:30, base:2, basis:'Gemüse', aufwand:'nebenbei', preis:1, foto:'', ings:[], steps:[], desc:'', level:'Einfach', diet:'', tags:[] };
+  return { name:'', minutes:30, base:2, basis:'Gemüse', aufwand:'nebenbei', preis:1, foto:'', ings:[], steps:[], desc:'', level:'Einfach', diet:'', tags:[], wunsch:'' };
 }
 
 function openNeu(id, modus, vorgabe){
@@ -2924,6 +3003,7 @@ function openNeu(id, modus, vorgabe){
   state.nameVorgabe = vorgabe || '';
   state.neuModus = id ? 'form' : (modus || 'wahl');
   state.bilder = [];
+  state.wunsch = '';
   $('fab').classList.add('hide');
   showView('vNeu');
   renderNeu();
@@ -2984,6 +3064,13 @@ function formHtml(){
   const e = entwurf;
   return `
     <h1 class="title" style="font-size:30px;">${e.id ? 'Rezept bearbeiten' : 'Neues Rezept'}</h1>
+
+    ${e.wunsch ? `<div style="display:flex; gap:10px; align-items:flex-start; background:var(--raised); border-radius:12px; padding:11px 13px; margin-bottom:4px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 16px; margin-top:1px;"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
+      <div style="flex:1;"><div style="font-size:13px; font-weight:500;">Angepasst</div>
+      <div class="hint" style="margin-top:2px;">${esc(e.wunsch)}</div></div>
+      <button onclick="wunschVermerkWeg()" style="color:var(--muted); font-size:15px; padding:0 2px;" aria-label="Vermerk entfernen">✕</button>
+    </div>` : ''}
 
     <div class="lbl">Name</div>
     <input class="line-field" id="fName" value="${esc(e.name)}" placeholder="Omas Kartoffelauflauf">
@@ -3107,6 +3194,7 @@ function textHtml(){
     <h1 class="title" style="font-size:30px;">Text einfügen</h1>
     <div class="muted" style="margin:8px 0 16px;">Rezept irgendwo kopieren und hier einsetzen. ${store.settings.apiKey ? 'Die KI räumt es auf.' : 'Ohne KI-Schlüssel erkenne ich Mengen und Schritte über Muster – schau danach kurz drüber.'}</div>
     <textarea class="field" id="tImport" style="min-height:240px;" placeholder="Zutaten für 4 Personen:&#10;250 g Linsen&#10;…&#10;&#10;Zubereitung:&#10;1. Zwiebeln anbraten …"></textarea>
+    ${store.settings.apiKey ? wunschHtml('So soll das Rezept beim Übernehmen angepasst werden.') : ''}
     <button class="btn solid wide big" style="margin-top:16px;" id="tBtn" onclick="textImport()">Rezept erkennen</button>`;
 }
 
@@ -3119,11 +3207,12 @@ async function textImport(){
   try{
     let e = null;
     if(store.settings.apiKey){
-      try{ e = await kiRezept('Hier ist ein Rezept als Text:\n\n' + txt.slice(0, 6000)); }
+      try{ e = await kiRezept('Hier ist ein Rezept als Text:\n\n' + txt.slice(0, 6000) +
+             wunschAuftrag('Übernimm es, aber passe es an diese Wünsche an')); }
       catch(err){ toast('KI nicht erreichbar – ich nehme die einfache Erkennung'); }
     }
     if(!e) e = textZuRezept(txt);
-    entwurf = e;
+    entwurf = wunschVermerken(e);
     state.neuModus = 'form';
     renderNeu();
     toast('Bitte kurz prüfen und sichern');
@@ -3175,6 +3264,7 @@ function nameHtml(){
     <div class="chips wrap" style="margin-top:12px;">
       ${vorschlaege.map(v => `<button class="chip" onclick="$('nFeld').value='${v}'; nameImport()">${v}</button>`).join('')}
     </div>
+    ${wunschHtml()}
     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
       <div><div style="font-size:14px;">Portionen</div><div class="hint" style="margin-top:2px;">für wie viele soll es reichen</div></div>
       <div style="display:flex; align-items:center; gap:16px;">
@@ -3206,7 +3296,9 @@ async function nameImport(){
     entwurf = await kiRezept(
       'Schreibe ein alltagstaugliches Rezept für: ' + wunsch + '.\n' +
       'Für ' + (state.namePortionen || 4) + ' Portionen, mit Zutaten, die man in einem normalen Supermarkt bekommt. ' +
-      'Realistische Mengen, klare Schritte in der Reihenfolge, und bei Wartezeiten die Minuten im Timer-Feld.');
+      'Realistische Mengen, klare Schritte in der Reihenfolge, und bei Wartezeiten die Minuten im Timer-Feld.' +
+      wunschAuftrag());
+    wunschVermerken(entwurf);
     state.neuModus = 'form';
     renderNeu();
     toast('Bitte durchsehen und sichern');
@@ -3230,6 +3322,7 @@ function linkHtml(){
       <button class="btn sm" style="margin-top:11px;" onclick="openEinstellungen()">Zu den Einstellungen</button></div>`}
     <input class="field" id="lFeld" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://www.chefkoch.de/rezepte/…"
       onkeydown="if(event.key==='Enter')linkImport()">
+    ${store.settings.apiKey ? wunschHtml('So soll das Rezept beim Übernehmen angepasst werden.') : ''}
     <button class="btn ${store.settings.apiKey ? 'accent' : ''} wide big" style="margin-top:14px;" id="lBtn" ${store.settings.apiKey ? '' : 'disabled'} onclick="linkImport()">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
       Rezept von der Seite holen</button>
@@ -3255,8 +3348,10 @@ async function linkImport(){
   try{
     entwurf = await kiRezept(
       'Öffne diese Seite und lies das Rezept vollständig aus: ' + url +
-      (istVideoSeite(url) ? '\nEs ist eine Videoplattform – das Rezept steht meist in der Beschreibung unter dem Video.' : ''),
+      (istVideoSeite(url) ? '\nEs ist eine Videoplattform – das Rezept steht meist in der Beschreibung unter dem Video.' : '') +
+      wunschAuftrag('Übernimm es, aber passe es an diese Wünsche an'),
       null, url);
+    wunschVermerken(entwurf);
     state.neuModus = 'form';
     renderNeu();
     toast('Bitte kurz prüfen und sichern');
@@ -3296,6 +3391,7 @@ function bildHtml(){
       </button>
     </div>
 
+    ${store.settings.apiKey ? wunschHtml('So soll das Rezept beim Übernehmen angepasst werden.') : ''}
     <button class="btn ${b.length && store.settings.apiKey ? 'accent' : ''} wide big" style="margin-top:20px;" id="bBtn" ${b.length && store.settings.apiKey ? '' : 'disabled'} onclick="bildImport()">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
       Rezept daraus erstellen</button>
@@ -3350,7 +3446,9 @@ async function bildImport(){
   btn.disabled = true;
   $('bFehler').innerHTML = '';
   try{
-    entwurf = await kiRezept('Auf diesen Bildern oder Seiten steht ein Rezept. Lies es vollständig aus.', anhaengeBauen());
+    entwurf = await kiRezept('Auf diesen Bildern oder Seiten steht ein Rezept. Lies es vollständig aus.' +
+      wunschAuftrag('Übernimm es, aber passe es an diese Wünsche an'), anhaengeBauen());
+    wunschVermerken(entwurf);
     state.bilder = [];
     state.neuModus = 'form';
     renderNeu();
