@@ -116,8 +116,10 @@ Stufe III.
 
 ### Die Effekte
 
-Acht Effekte, aber nur vier Mechaniken — Adernschlag, Kahlschlag, Aushub und
-Glutacker sind derselbe Code mit anderen Filtern und anderen Obergrenzen.
+Zehn Effekte, aber nur vier Mechaniken. Adernschlag, Kahlschlag, Aushub und
+Aschelese sind derselbe Ausbreitungs-Code mit anderen Filtern und anderen
+Obergrenzen. Die vier Kampfeffekte hängen an demselben Treffer-Hook und gehen
+erst im Rumpf auseinander.
 
 | Werkzeug | Effekt | Mechanik | I → II → III |
 |---|---|---|---|
@@ -125,10 +127,28 @@ Glutacker sind derselbe Code mit anderen Filtern und anderen Obergrenzen.
 | Spitzhacke | Erzsicht | Wahrnehmung | Radius und Intervall, Zahlen nach der Rechnung |
 | Spitzhacke | Adernschlag | Ausbreitung | 8 → 24 → 64 Blöcke |
 | Schwert | Schockwelle | Kampf | Wucht des Rückstoßes |
-| Schwert | Brandmal | Kampf | 2 → 4 → 6 Sekunden Brand |
+| Schwert | Zunder | Kampf | Stapelschaden und Zündradius |
+| Schwert | Aschezehrung | Kampf | ½ → 1 → 2 Herzen pro Kill |
+| Schwert | Splitterschlag | Kampf | 1 → 2 → 3 Nebenziele, 33 → 50 → 66 % Schaden |
 | Axt | Kahlschlag | Ausbreitung | 16 → 48 → 128 Stämme |
 | Schaufel | Aushub | Ausbreitung | 3×1 → 3×3 → 3×3×2 |
-| Hacke | Glutacker | Ausbreitung | 3×3 → 5×5 → 7×7, pflügen und säen |
+| Hacke | Aschelese | Ausbreitung | 1 → 3×3 → 5×5 Fläche, steigende Ausbeute |
+
+**Zunder** setzt bei jedem Treffer einen Glutstapel auf das Ziel; beim dritten
+zündet der Stapel und trifft auch, was danebensteht. **Aschezehrung** gibt Leben
+pro Kill zurück. **Splitterschlag** springt mit reduziertem Schaden auf Gegner
+in der Nähe über. **Aschelese** siebt bei Rechtsklick aus Kies, Sand und Erde
+Feuerstein und selten Roh-Cinerit — im Schutt wühlen statt Feldbau, und
+nebenbei eine zweite, langsame Cinerit-Quelle für Spieler, die nicht gern
+graben.
+
+Ausdrücklich verworfen: **Brandmal** (Ziel fängt Feuer). Er hätte nachgebaut,
+was Flammenschutz schon kann — und ein Effekt, der eine vorhandene Verzauberung
+kopiert, ist der schlechteste Werbeträger für ein System, dessen Zweck gerade
+darin besteht, eigene Verzauberungen zu ermöglichen.
+
+Das Schwert hat vier Effekte zur Auswahl, Axt, Schaufel und Hacke je einen. Das
+ist Absicht: Ein Schwert trägt man immer, eine Hacke fast nie.
 
 Ausbreitungseffekte verbrauchen Haltbarkeit **pro gebrochenem Block**. Ohne das
 wäre Kahlschlag III ein Freifahrtschein.
@@ -215,7 +235,7 @@ Werkzeuge unter Diamantstufe.
 | 5 | Mob mit Spawn-Regeln | offen |
 | 6 | Altar-Block und Menü, noch ohne Effekte | offen |
 | 7 | Die 30 infundierten Items und die Umwandlungslogik | offen |
-| 8 | Die Effekte, familienweise | offen |
+| 8 | Die zehn Effekte, mechanikweise statt effektweise | offen |
 | 9 | Sprachdateien und Aufräumen | offen |
 
 ## Der Spike (Schritt 2)
@@ -241,4 +261,6 @@ Grund, warum der Spike vor den 30 Items steht.
 - Welche Vanilla-Geometrie bekommt der Aschewandler?
 - Radius und Intervall der Erzsicht je Stufe.
 - Ob Bedrock für eigene Items überhaupt Feuerfestigkeit anbietet (Netherit).
+- Ob dynamische Eigenschaften an Entities in 2.x noch im Manifest deklariert
+  werden müssen — Zunder braucht Glutstapel am getroffenen Gegner.
 - Wie kommen die Dateien auf das iPad — Dateien-App oder `.mcaddon`-Import?
