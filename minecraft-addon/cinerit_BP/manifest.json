@@ -1,0 +1,40 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Cinerit — Behavior Pack",
+    "description": "Cinerit: Erz, Werkzeuge und Infusions-Altar. Verhaltensteil.",
+    "uuid": "550e5883-b954-42bb-86d7-b0488be47b06",
+    "version": [0, 1, 0],
+    "min_engine_version": [1, 26, 40]
+  },
+  "modules": [
+    {
+      "description": "Bloecke, Items, Rezepte, Loot Tables",
+      "type": "data",
+      "uuid": "e13ae95d-f90f-4845-81d3-5d2435ef499d",
+      "version": [0, 1, 0]
+    },
+    {
+      "description": "Infusions-System",
+      "type": "script",
+      "language": "javascript",
+      "entry": "scripts/main.js",
+      "uuid": "6304f9d0-389d-4eff-8ca6-67a4a993166c",
+      "version": [0, 1, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "1aa5a302-32fb-43de-a5b5-1c9797222fc3",
+      "version": [0, 1, 0]
+    },
+    {
+      "module_name": "@minecraft/server",
+      "version": "2.9.0"
+    },
+    {
+      "module_name": "@minecraft/server-ui",
+      "version": "2.1.0"
+    }
+  ]
+}

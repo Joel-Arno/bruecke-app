@@ -1,0 +1,24 @@
+{
+  "format_version": 2,
+  "header": {
+    "name": "Cinerit — Resource Pack",
+    "description": "Cinerit: Texturen, Modelle und Sprachdateien.",
+    "uuid": "1aa5a302-32fb-43de-a5b5-1c9797222fc3",
+    "version": [0, 1, 0],
+    "min_engine_version": [1, 26, 40]
+  },
+  "modules": [
+    {
+      "description": "Texturen und Sprachdateien",
+      "type": "resources",
+      "uuid": "b455d525-d2c8-4546-b580-aa9b90fa60ca",
+      "version": [0, 1, 0]
+    }
+  ],
+  "dependencies": [
+    {
+      "uuid": "550e5883-b954-42bb-86d7-b0488be47b06",
+      "version": [0, 1, 0]
+    }
+  ]
+}
