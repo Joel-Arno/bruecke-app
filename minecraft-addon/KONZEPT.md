@@ -217,7 +217,13 @@ Dieser Weg steht hier, damit wir im Ernstfall nicht improvisieren müssen.
    naheliegende.
 6. Texturen sind eigene Kunst im Vanilla-Stil, keine übermalten
    Mojang-Texturen. Für ein Bewerbungsstück ist das der Unterschied zwischen
-   „kann pixeln" und „hat kopiert".
+   „kann pixeln" und „hat kopiert". Die Werkzeug-Texturen entstehen in
+   `textur_werkstatt/generiere_texturen.py`, wo jede Form als lesbares
+   Pixelraster steht — Pixel für Pixel von Hand gesetzt, nur eben im Editor
+   statt im Malprogramm. Der Grund ist nicht Bequemlichkeit: Von den 30
+   Dateien sind nur fünf echte Zeichnungen, der Rest ist dieselbe Form in
+   anderer Farbe mit mehr Glut. Wer das von Hand pflegt, vergisst beim
+   sechsten Farbwechsel die Hälfte.
 
 ## Ausdrücklich nicht in Version 1
 

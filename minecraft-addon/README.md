@@ -58,16 +58,40 @@ steht der Grund im Content Log.
 
 ## Texturen
 
-Alle Texturen sind selbst gepixelt. Was gebraucht wird, steht jeweils im
-Schritt, in dem es dazukommt. Für Schritt 1 wird noch keine gebraucht — bis auf
-optional zwei Pack-Icons:
+Die 30 Werkzeug-Texturen entstehen im Skript, nicht in 30 Einzeldateien:
 
-| Datei | Größe |
-|---|---|
-| `cinerit_BP/pack_icon.png` | 128 × 128 |
-| `cinerit_RP/pack_icon.png` | 128 × 128 |
+    cd textur_werkstatt
+    python3 generiere_texturen.py                  # schreibt die 30 PNGs
+    python3 generiere_texturen.py --vorschau v.png # plus Kontaktbogen
 
-Fehlen sie, zeigt Minecraft ein Platzhalter-Icon. Das Pack lädt trotzdem.
+Ohne Bibliotheken, laeuft ueberall, wo Python laeuft — auch in einer
+Python-App auf dem iPad. Das Skript schreibt PNG selbst.
+
+Gezeichnet wird in `generiere_texturen.py` an zwei Stellen:
+
+`FORMEN` haelt pro Werkzeug 16 Zeilen zu 16 Zeichen. `.` ist durchsichtig,
+`l m d` sind hell, mittel und dunkel des Materials, `s t` der Griff. Zeichen
+tauschen, Skript laufen lassen, fertig.
+
+`ADERN` haelt pro Werkzeug drei Ringe aus `(zeile, spalte)`. Ring 1 gluht ab
+Stufe I, Ring 2 ab Stufe II, Ring 3 ab Stufe III. Die Farbe haengt dabei nicht
+nur an der Stufe, sondern auch am Ring: Bei Stufe III gluehen die inneren
+Adern gelb, waehrend die aeusseren erst anspringen. So sieht Stufe III nach
+Hitze aus, die sich von innen nach aussen frisst, und nicht nach mehr orangen
+Punkten.
+
+Das Skript prueft beim Start, dass jede Zeile wirklich 16 Zeichen hat und
+keine Ader im Leeren liegt. Beides verrutscht beim Zeichnen im Texteditor,
+ohne dass man es sieht — im Spiel faellt es erst auf, wenn ein Glutpunkt frei
+neben dem Werkzeug schwebt.
+
+`item_texture.json` wird mitgeschrieben. Kurzname und Dateiname stammen aus
+derselben Schleife und koennen deshalb nicht auseinanderlaufen.
+
+Aktueller Stand als Kontaktbogen: [`textur_werkstatt/vorschau.png`](textur_werkstatt/vorschau.png)
+
+Optional, aber schoen: zwei `pack_icon.png`, je 128 x 128, in `cinerit_BP/`
+und `cinerit_RP/`. Fehlen sie, zeigt Minecraft ein Platzhalter-Icon.
 
 ## Versionen
 
