@@ -1359,6 +1359,7 @@ const state = {
   kuecheTab: 'einkauf',
   chat: [],
   wunsch: '',           // Wünsche beim Erstellen per KI
+  aendern: '',          // Änderungswunsch am fertigen Entwurf
   lernen: null,
   quiz: null,
   busy: false
@@ -3004,6 +3005,8 @@ function openNeu(id, modus, vorgabe){
   state.neuModus = id ? 'form' : (modus || 'wahl');
   state.bilder = [];
   state.wunsch = '';
+  state.aendern = '';
+  vorigerEntwurf = null;
   $('fab').classList.add('hide');
   showView('vNeu');
   renderNeu();
@@ -3103,6 +3106,8 @@ function formHtml(){
     <textarea class="field" id="fSchritte" style="min-height:150px;" placeholder="Zwiebeln anbraten&#10;Linsen und Tomaten zugeben, 20 Minuten köcheln">${esc(e.steps.map(s => s.t).join('\n'))}</textarea>
     <div class="hint" style="margin-top:6px;">Steht in einem Schritt eine Minutenangabe, gibt es dort automatisch einen Timer.</div>
 
+    ${aendernHtml(e)}
+
     <button class="btn solid wide big" style="margin-top:22px;" onclick="entwurfSichern()">Rezept sichern</button>`;
 }
 
@@ -3110,6 +3115,129 @@ function entwurfSetz(feld, wert){
   formLesen();
   entwurf[feld] = wert;
   renderNeu();
+}
+
+/* ==========================================================================
+   ENTWURF UMSCHREIBEN LASSEN
+   Statt abzubrechen und neu anzufangen: das fertige Rezept plus ein
+   Änderungswunsch gehen zurück an die KI. Handänderungen aus dem Formular
+   gehen mit, und die vorige Fassung bleibt für einen Rückweg liegen.
+   ========================================================================== */
+let vorigerEntwurf = null;
+
+/* Zutaten, die als „ohne …" keinen Sinn ergeben */
+const AENDERN_EGAL = /^(salz|pfeffer|wasser|öl|olivenöl|butter)$/i;
+
+function aendernChips(e){
+  const aus = (e.ings || [])
+    .map(i => (i.n || '').split(',')[0].trim())
+    .filter(n => n && !AENDERN_EGAL.test(n))
+    .slice(0, 3)
+    .map(n => 'ohne ' + n);
+  return aus.concat(['einfacher machen', 'schneller machen', 'schärfer']).slice(0, 6);
+}
+
+function aendernHtml(e){
+  if(!store.settings.apiKey){
+    return `<div class="hint" style="margin-top:22px; text-align:center;">Zum Umschreiben durch die KI fehlt der Schlüssel – du kannst das Rezept hier aber von Hand ändern.</div>`;
+  }
+  const chips = aendernChips(e);
+  const w = (state.aendern || '').toLowerCase();
+  return `
+    <div style="border-radius:14px; background:var(--raised); padding:14px 15px; margin-top:22px;">
+      <div style="display:flex; align-items:center; gap:9px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round" style="flex:0 0 16px;"><path d="M12 3.5l2.1 5.4 5.4 2.1-5.4 2.1L12 18.5l-2.1-5.4L4.5 11l5.4-2.1z"/></svg>
+        <span style="font-size:14px; font-weight:500; flex:1;">Noch etwas ändern</span>
+        ${vorigerEntwurf ? '<button class="btn ghost sm" style="padding:0; color:var(--muted); flex:0 0 auto; white-space:nowrap;" onclick="entwurfZurueck()">↩ Zurück</button>' : ''}
+      </div>
+      <div class="hint" style="margin:4px 0 10px;">Sag, was raus soll oder dazu – die KI schreibt das Rezept um, du fängst nicht neu an.</div>
+      <input class="field" id="aendernFeld" placeholder="z. B. ohne Sahne, dafür mehr Brühe"
+        value="${esc(state.aendern || '')}" oninput="state.aendern = this.value; aendernChipsAuffrischen()"
+        onkeydown="if(event.key==='Enter')entwurfUmschreiben()">
+      <div class="chips wrap" id="aendernChips" style="margin-top:9px;">${aendernChipsHtml(chips, w)}</div>
+      <button class="btn accent wide" style="margin-top:12px;" id="aendernBtn" onclick="entwurfUmschreiben()">Umschreiben lassen</button>
+      <div id="aendernFehler"></div>
+    </div>`;
+}
+
+function aendernChipsHtml(chips, w){
+  return chips.map(c => {
+    const drin = w.includes(c.toLowerCase());
+    return `<button class="chip${drin ? ' on' : ''}" onclick="aendernChip(${JSON.stringify(c).replace(/"/g, '&quot;')})">${drin ? '✓' : '+'} ${esc(c)}</button>`;
+  }).join('');
+}
+
+function aendernChipsAuffrischen(){
+  const z = $('aendernChips');
+  if(z && entwurf) z.innerHTML = aendernChipsHtml(aendernChips(entwurf), (state.aendern || '').toLowerCase());
+}
+
+function aendernChip(text){
+  const teile = (state.aendern || '').split(',').map(t => t.trim()).filter(Boolean);
+  const i = teile.findIndex(t => t.toLowerCase() === text.toLowerCase());
+  if(i >= 0) teile.splice(i, 1); else teile.push(text);
+  state.aendern = teile.join(', ');
+  const f = $('aendernFeld');
+  if(f) f.value = state.aendern;
+  aendernChipsAuffrischen();
+}
+
+/* Der aktuelle Entwurf als Text – das ist die Vorlage für die KI */
+function entwurfAlsText(e){
+  return 'Name: ' + e.name + '\n' +
+    'Minuten: ' + e.minutes + '\nPortionen: ' + e.base + '\n' +
+    'Grundzutat: ' + e.basis + '\nAufwand: ' + e.aufwand + '\n\n' +
+    'Zutaten:\n' + e.ings.map(i => '- ' + (i.q ? zahl(i.q) + ' ' : '') + (i.u ? i.u + ' ' : '') + i.n + (i.note ? ', ' + i.note : '')).join('\n') +
+    '\n\nSchritte:\n' + e.steps.map((x, n) => (n + 1) + '. ' + x.t).join('\n');
+}
+
+async function entwurfUmschreiben(){
+  if(!entwurf) return;
+  formLesen();
+  const auftrag = (state.aendern || '').trim();
+  if(auftrag.length < 3){ toast('Schreib kurz hin, was anders werden soll'); return; }
+
+  const btn = $('aendernBtn');
+  btn.innerHTML = '<span class="spin"></span> Wird umgeschrieben …';
+  btn.disabled = true;
+  $('aendernFehler').innerHTML = '';
+  const alt = JSON.parse(JSON.stringify(entwurf));
+
+  try{
+    const neu = await kiRezept(
+      'Hier ist ein fertiges Rezept:\n\n' + entwurfAlsText(alt) + '\n\n' +
+      'Ändere daran genau das: ' + auftrag + '.\n' +
+      'Alles andere bleibt so, wie es ist – Name, Portionen und die übrigen Zutaten und Schritte nur dort anfassen, ' +
+      'wo die Änderung es erzwingt. Fällt eine Zutat weg, streiche sie auch aus den Schritten und gleiche die Mengen aus. ' +
+      'Kommt etwas dazu, bau es an der richtigen Stelle ein. Gib das vollständige geänderte Rezept zurück, nicht nur das Geänderte.');
+
+    // Was die KI nicht kennt, bleibt erhalten
+    neu.id = alt.id;
+    neu.foto = alt.foto;
+    neu.eigen = alt.eigen;
+    neu.wunsch = (alt.wunsch ? alt.wunsch + ', ' : '') + auftrag;
+    neu.desc = 'Angepasst: ' + neu.wunsch + '.';
+
+    vorigerEntwurf = alt;
+    entwurf = neu;
+    state.aendern = '';
+    renderNeu();
+    $('vNeu').scrollTop = $('vNeu').scrollHeight;
+    toast('Umgeschrieben – bitte durchsehen');
+  }catch(e){
+    btn.disabled = false;
+    btn.textContent = 'Nochmal versuchen';
+    $('aendernFehler').innerHTML = `<div class="hint" style="margin-top:10px;">Hat nicht geklappt: ${esc(e.message)}</div>`;
+  }
+}
+
+function entwurfZurueck(){
+  if(!vorigerEntwurf) return;
+  entwurf = vorigerEntwurf;
+  vorigerEntwurf = null;
+  renderNeu();
+  $('vNeu').scrollTop = $('vNeu').scrollHeight;
+  toast('Vorige Fassung wiederhergestellt');
 }
 
 function formLesen(){
