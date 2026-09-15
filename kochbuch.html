@@ -3260,16 +3260,17 @@ function nameHtml(){
       <div class="hint" style="margin-top:4px;">Trag ihn unter Küche › Mehr ein.</div>
       <button class="btn sm" style="margin-top:11px;" onclick="openEinstellungen()">Zu den Einstellungen</button></div>`}
     <input class="field" id="nFeld" placeholder="z. B. Lasagne, vegetarisch" value="${esc(state.nameVorgabe || '')}"
+      oninput="state.nameVorgabe = this.value"
       onkeydown="if(event.key==='Enter')nameImport()">
     <div class="chips wrap" style="margin-top:12px;">
-      ${vorschlaege.map(v => `<button class="chip" onclick="$('nFeld').value='${v}'; nameImport()">${v}</button>`).join('')}
+      ${vorschlaege.map(v => `<button class="chip" onclick="state.nameVorgabe='${v}'; $('nFeld').value='${v}'; nameImport()">${v}</button>`).join('')}
     </div>
     ${wunschHtml()}
     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
       <div><div style="font-size:14px;">Portionen</div><div class="hint" style="margin-top:2px;">für wie viele soll es reichen</div></div>
       <div style="display:flex; align-items:center; gap:16px;">
         <button class="icon-btn" style="width:32px;height:32px;flex:0 0 32px;font-size:17px;" onclick="namePortionen(-1)">−</button>
-        <span class="serif" style="font-size:20px; min-width:20px; text-align:center;">${state.namePortionen || 4}</span>
+        <span class="serif" id="nPortZahl" style="font-size:20px; min-width:20px; text-align:center;">${state.namePortionen || 4}</span>
         <button class="icon-btn" style="width:32px;height:32px;flex:0 0 32px;font-size:17px;" onclick="namePortionen(1)">+</button>
       </div>
     </div>
@@ -3281,12 +3282,16 @@ function nameHtml(){
 }
 function namePortionen(d){
   state.namePortionen = Math.min(12, Math.max(1, (state.namePortionen || 4) + d));
-  renderNeu();
+  // Nur die Zahl austauschen: sonst würde die Seite neu gezeichnet und
+  // die Tastatur zuklappen, während man noch am Tippen ist
+  const z = $('nPortZahl');
+  if(z) z.textContent = state.namePortionen; else renderNeu();
 }
 
 async function nameImport(){
   const feld = $('nFeld');
   const wunsch = (feld.value || '').trim();
+  state.nameVorgabe = feld.value || '';
   if(wunsch.length < 3){ toast('Schreib kurz hin, was es sein soll'); return; }
   const btn = $('nBtn');
   btn.innerHTML = '<span class="spin"></span> Wird geschrieben …';
