@@ -869,6 +869,16 @@ __URLS__
 """
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # Handy gesperrt, App gewechselt, WLAN weg: normal, kein Grund für einen Fehlertext
+        if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError, socket.timeout)):
+            return
+        super().handle_error(request, client_address)
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "MacRemote/1.0"
@@ -1178,10 +1188,9 @@ def main():
     Handler.mac, Handler.token, Handler.urls = mac, token, urls
     Handler.icon = app_icon()
     try:
-        server = ThreadingHTTPServer((args.host, args.port), Handler)
+        server = Server((args.host, args.port), Handler)
     except OSError as e:
         sys.exit("Port %d ist belegt (%s). Läuft der Server schon? Sonst: --port 8766" % (args.port, e))
-    server.daemon_threads = True
 
     print("\n  Mac-Fernbedienung läuft.\n")
     print("  Am Handy öffnen (selbes WLAN):")
