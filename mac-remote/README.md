@@ -1,6 +1,6 @@
 # Mac-Fernbedienung
 
-Steuere deinen Mac vom Handy aus, per Browser und ohne App-Store-App.
+Steuere deinen Mac vom Handy oder iPad aus, per Browser und ohne App-Store-App.
 Auf dem Mac läuft ein kleiner Server (nur Python, das macOS schon mitbringt).
 Das Handy öffnet dessen Seite im selben WLAN.
 
@@ -8,7 +8,7 @@ Das Handy öffnet dessen Seite im selben WLAN.
 
 | Bereich | Funktionen |
 |---|---|
-| **Maus** | Handy als Trackpad: bewegen, Tippen = Klick, 2-Finger-Tipp = Rechtsklick, 2-Finger-Scrollen, Scroll-Leiste, Doppelklick, „Halten“ zum Ziehen |
+| **Maus** | Handy/iPad als Trackpad (flüssig über eine dauerhafte WebSocket-Verbindung): bewegen, Tippen = Klick, 2-Finger-Tipp = Rechtsklick, 2-Finger-Scrollen, Scroll-Leiste, Doppelklick, „Halten“ zum Ziehen |
 | **Tasten** | Präsentation/Video (◀ ▶, Leertaste, Vollbild), direkt tippen, längeren Text senden (auch Diktat), Sondertasten (Esc, Tab, Pfeile, Pos1, F-Tasten …), ⌘ ⇧ ⌥ ⌃ + Buchstabe, fertige Kurzbefehle (Kopieren, Einfügen, Rückgängig, Spotlight, App wechseln …) |
 | **Medien** | Play/Pause, Weiter, Zurück (Spotify, Apple Music, YouTube im Browser …), „Läuft gerade“-Anzeige, Lautstärke-Regler, Stumm, Bildschirmhelligkeit |
 | **Apps** | laufende Apps nach vorn holen oder beenden, installierte Apps suchen und starten, Webseite öffnen |
@@ -56,19 +56,36 @@ macOS fragt nach Freigaben für **Terminal**. Alle drei findest du unter
 Nach dem Einschalten von *Bedienungshilfen* den Server einmal neu starten
 (im Terminal `Ctrl+C`, dann wieder `python3 server.py`).
 
-### 4. Handy verbinden
+### 4. Handy oder iPad verbinden
 
-1. Handy ins **selbe WLAN** wie den Mac.
+1. Handy/iPad ins **selbe WLAN** wie den Mac.
 2. Den QR-Code vom Mac mit der Handy-Kamera scannen und öffnen.
-3. **Zum Home-Bildschirm hinzufügen** (iPhone: Teilen-Symbol → „Zum Home-Bildschirm“),
+3. **Zum Home-Bildschirm hinzufügen** (iPhone/iPad: Teilen-Symbol → „Zum Home-Bildschirm“),
    dann startet sie wie eine App im Vollbild.
+
+Auf dem **iPad** (und am Handy im Querformat) ist das Trackpad immer links zu sehen, rechts liegen
+Tasten, Medien, Apps und System. Der Monitor-Tab nutzt die ganze Breite.
 
 Der QR-Code lässt sich jederzeit am Mac unter <http://localhost:8765/pair> wieder aufrufen.
 
+## Schneller starten: App-Symbol
+
+Einmal im Terminal (im Ordner `mac-remote`):
+
+```bash
+python3 server.py --install
+```
+
+Danach gibt es die App **„Mac-Fernbedienung“** (in deinem Benutzerordner unter *Programme*):
+
+- **⌘ + Leertaste** → „Fernbedienung“ tippen → **Enter**, oder das Symbol ins **Dock** ziehen.
+- Ein Klick startet den Server im Terminal. Läuft er schon, zeigt ein Klick den QR-Code zum Verbinden.
+- Den Ordner `mac-remote` danach nicht mehr verschieben, sonst `--install` einfach wiederholen.
+
 ## Automatisch starten
 
-**Systemeinstellungen → Allgemein → Anmeldeobjekte → „+“** und `start.command` auswählen.
-Dann läuft der Server nach jedem Login im Terminal, mit denselben Freigaben.
+**Systemeinstellungen → Allgemein → Anmeldeobjekte → „+“** und die App **Mac-Fernbedienung**
+(oder `start.command`) auswählen. Dann läuft der Server nach jedem Login, mit denselben Freigaben.
 
 ## Sicherheit
 
@@ -97,12 +114,15 @@ Dann läuft der Server nach jedem Login im Terminal, mit denselben Freigaben.
 ```
 python3 server.py --port 8765      anderer Port
 python3 server.py --new-token      neuen Schlüssel erzeugen
-python3 server.py --no-browser     QR-Seite nicht automatisch öffnen
+python3 server.py --pair           QR-Seite beim Start öffnen (sonst nur beim ersten Mal)
+python3 server.py --no-browser     QR-Seite nie automatisch öffnen
+python3 server.py --install        App „Mac-Fernbedienung“ anlegen
 ```
 
 ## Technik
 
-- `server.py`: HTTP-Server, nur Python-Standardbibliothek. Maus, Tastatur und Medientasten laufen
-  direkt über CoreGraphics (per `ctypes`), der Rest über `osascript`, `pmset`, `open`,
+- `server.py`: HTTP- und WebSocket-Server, nur Python-Standardbibliothek. Maus, Tastatur und
+  Medientasten laufen direkt über CoreGraphics (per `ctypes`); Mausbewegungen werden auf dem Mac
+  geglättet, der Rest über `osascript`, `pmset`, `open`,
   `screencapture`, `pbcopy`/`pbpaste` und `say`.
 - `static/index.html`: die Handy-Oberfläche, eine einzelne Datei ohne externe Abhängigkeiten.

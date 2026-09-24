@@ -11,12 +11,15 @@ Braucht nur die Python-Standardbibliothek (python3 ist auf dem Mac dabei).
 """
 
 import argparse
+import base64
 import ctypes
+import hashlib
 import hmac
 import json
 import os
 import re
 import secrets
+import shutil
 import socket
 import struct
 import subprocess
@@ -25,6 +28,7 @@ import tempfile
 import threading
 import time
 import traceback
+import urllib.request
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -37,6 +41,9 @@ IS_MAC = sys.platform == "darwin"
 # pbcopy/pbpaste/say brauchen eine UTF-8-Umgebung, sonst werden Umlaute kaputt.
 ENV = dict(os.environ, LANG="en_US.UTF-8", LC_ALL="en_US.UTF-8")
 MAX_BODY = 1024 * 1024
+WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+# Diese Befehle kommen über den WebSocket (schnell, in fester Reihenfolge)
+WS_ACTIONS = {"mouse_move", "scroll", "click", "drag"}
 
 # Tastennamen -> macOS-Keycodes
 KEYCODES = {
@@ -183,6 +190,16 @@ class Quartz:
         self.dragging = False
         self.scroll_rest = [0.0, 0.0]
         self.lock = threading.Lock()
+        # Eigene Cursor-Position: macOS meldet nach schnellen Bewegungen oft
+        # noch die alte Position, dadurch ging Bewegung verloren und es ruckelte.
+        self.cursor = None
+        self.cursor_time = 0.0
+        self.area = None
+        self.area_time = 0.0
+        # Ausstehende Bewegung, die ein eigener Thread gleichmäßig abarbeitet
+        self.pending = [0.0, 0.0]
+        self.pending_cv = threading.Condition()
+        threading.Thread(target=self._mover, daemon=True).start()
         try:
             self._init_media_keys()
         except Exception as e:  # Maus/Tastatur funktionieren trotzdem
@@ -206,37 +223,99 @@ class Quartz:
         self.Release(ev)
         return p.x, p.y
 
-    def screen_area(self):
-        ids = (ctypes.c_uint32 * 16)()
-        count = ctypes.c_uint32(0)
-        self.ActiveDisplays(16, ids, ctypes.byref(count))
-        rects = [self.DisplayBounds(ids[i]) for i in range(count.value)]
-        rects = rects or [self.DisplayBounds(self.MainDisplay())]
-        return (min(r.origin.x for r in rects), min(r.origin.y for r in rects),
-                max(r.origin.x + r.size.width for r in rects),
-                max(r.origin.y + r.size.height for r in rects))
+    def displays(self):
+        """Bildschirme als (x0, y0, x1, y1), zwei Sekunden zwischengespeichert."""
+        now = time.monotonic()
+        if self.area is None or now - self.area_time > 2:
+            ids = (ctypes.c_uint32 * 16)()
+            count = ctypes.c_uint32(0)
+            self.ActiveDisplays(16, ids, ctypes.byref(count))
+            rects = [self.DisplayBounds(ids[i]) for i in range(count.value)]
+            rects = rects or [self.DisplayBounds(self.MainDisplay())]
+            self.area = [(r.origin.x, r.origin.y, r.origin.x + r.size.width,
+                          r.origin.y + r.size.height) for r in rects]
+            self.area_time = now
+        return self.area
+
+    def _clamp(self, x, y, fx, fy):
+        """(x, y) auf einen Bildschirm begrenzen – bevorzugt den, auf dem (fx, fy) liegt."""
+        screens = self.displays()
+        for x0, y0, x1, y1 in screens:
+            if x0 <= x < x1 and y0 <= y < y1:
+                return x, y
+        home = next((d for d in screens if d[0] <= fx < d[2] and d[1] <= fy < d[3]), screens[0])
+        x0, y0, x1, y1 = home
+        return min(max(x, x0), x1 - 1), min(max(y, y0), y1 - 1)
 
     # -- Maus
+    def _current(self):
+        # Nach einer Pause neu einlesen, falls die echte Maus bewegt wurde
+        if self.cursor is None or time.monotonic() - self.cursor_time > 0.3:
+            self.cursor = self.position()
+        return self.cursor
+
+    def queue_move(self, dx, dy):
+        with self.pending_cv:
+            self.pending[0] += dx
+            self.pending[1] += dy
+            self.pending_cv.notify()
+
+    def _take(self, fraction):
+        with self.pending_cv:
+            px, py = self.pending
+            if fraction < 1 and (abs(px) >= 1 or abs(py) >= 1):
+                px, py = px * fraction, py * fraction
+            self.pending[0] -= px
+            self.pending[1] -= py
+            return px, py
+
+    def _flush(self):
+        """Ausstehende Bewegung sofort ausführen (vor Klicks). Nur mit self.lock aufrufen."""
+        dx, dy = self._take(1)
+        if dx or dy:
+            self._move_by(dx, dy)
+
+    def _mover(self):
+        # Etwa 160 Schritte pro Sekunde, jeder holt die Hälfte des Rests nach:
+        # gleicht WLAN-Ruckler aus und kostet nur rund 15 ms Verzögerung.
+        while True:
+            with self.pending_cv:
+                while not (self.pending[0] or self.pending[1]):
+                    self.pending_cv.wait()
+            try:
+                with self.lock:
+                    dx, dy = self._take(0.5)
+                    if dx or dy:
+                        self._move_by(dx, dy)
+            except Exception:
+                pass
+            time.sleep(0.006)
+
     def move(self, dx, dy):
         with self.lock:
-            x, y = self.position()
-            x0, y0, x1, y1 = self.screen_area()
-            self._move_to(min(max(x + dx, x0), x1 - 1), min(max(y + dy, y0), y1 - 1), dx, dy)
+            self._move_by(dx, dy)
+
+    def _move_by(self, dx, dy):
+        x, y = self._current()
+        nx, ny = self._clamp(x + dx, y + dy, x, y)
+        self._move_to(nx, ny, dx, dy)
 
     def _move_to(self, x, y, dx=0, dy=0):
         kind = 6 if self.dragging else 5  # LeftMouseDragged / MouseMoved
         ev = self._new(self.MouseEvent(None, kind, CGPoint(x, y), 0))
-        self.SetField(ev, 4, int(dx))  # kCGMouseEventDeltaX
-        self.SetField(ev, 5, int(dy))  # kCGMouseEventDeltaY
+        self.SetField(ev, 4, int(round(dx)))  # kCGMouseEventDeltaX
+        self.SetField(ev, 5, int(round(dy)))  # kCGMouseEventDeltaY
         self._post(ev)
+        self.cursor, self.cursor_time = (x, y), time.monotonic()
 
     def click(self, button="left", count=1, at=None):
         with self.lock:
+            self._flush()
             if self.dragging:
                 self._button(False)
             if at:
                 self._move_to(*at)
-            x, y = self.position()
+            x, y = self._current()
             down, up, btn = (1, 2, 0) if button == "left" else (3, 4, 1)
             for n in range(1, count + 1):
                 for kind in (down, up):
@@ -245,7 +324,7 @@ class Quartz:
                     self._post(ev)
 
     def _button(self, down):
-        x, y = self.position()
+        x, y = self._current()
         ev = self._new(self.MouseEvent(None, 1 if down else 2, CGPoint(x, y), 0))
         self.SetField(ev, 1, 1)
         self._post(ev)
@@ -253,6 +332,7 @@ class Quartz:
 
     def drag(self, on):
         with self.lock:
+            self._flush()
             if on != self.dragging:
                 self._button(on)
 
@@ -436,7 +516,7 @@ class Mac:
 
     # -- Maus
     def mouse_move(self, body):
-        self.q().move(num_arg(body, "dx"), num_arg(body, "dy"))
+        self.q().queue_move(num_arg(body, "dx"), num_arg(body, "dy"))
 
     def click(self, body):
         button = "right" if body.get("button") == "right" else "left"
@@ -774,8 +854,8 @@ PAIR_PAGE = """<!DOCTYPE html>
        font-size:13px;color:#F2C14E;margin-top:8px;user-select:all}
   small{color:#A99F8D}
 </style></head><body><div class="card">
-<h1>Handy verbinden</h1>
-<p>Scanne den Code mit der Handy-Kamera.<br>Handy und Mac müssen im selben WLAN sein.</p>
+<h1>Handy oder iPad verbinden</h1>
+<p>Scanne den Code mit der Kamera.<br>Handy/iPad und Mac müssen im selben WLAN sein.</p>
 <div id="qr"></div>
 <small>Oder diese Adresse am Handy öffnen:</small>
 __URLS__
@@ -846,6 +926,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, f.read(), "text/html; charset=utf-8")
         if method == "GET" and path in ("/icon.png", "/apple-touch-icon.png", "/favicon.ico"):
             return self._send(200, self.icon, "image/png", cache=True)
+        if method == "GET" and path == "/ws":
+            return self._websocket(query)
         if method == "GET" and path == "/pair":
             # Die Seite zeigt den Schlüssel – nur am Mac selbst abrufbar.
             # Der Host-Header schützt zusätzlich vor DNS-Rebinding über fremde Webseiten.
@@ -880,19 +962,175 @@ class Handler(BaseHTTPRequestHandler):
         out.update(result or {})
         return self._send(200, out)
 
+    # -- WebSocket: eine offene Leitung für Mausbewegungen statt vieler Einzelanfragen
+    def _websocket(self, query):
+        if not self._authorized(query):
+            time.sleep(0.5)
+            return self._send(401, {"ok": False, "error": "Falscher oder fehlender Schlüssel."})
+        key = self.headers.get("Sec-WebSocket-Key")
+        if not key or (self.headers.get("Upgrade") or "").lower() != "websocket":
+            return self._send(400, {"ok": False, "error": "WebSocket erwartet."})
+        accept = base64.b64encode(hashlib.sha1((key + WS_GUID).encode()).digest()).decode()
+        self.send_response(101)
+        self.send_header("Upgrade", "websocket")
+        self.send_header("Connection", "Upgrade")
+        self.send_header("Sec-WebSocket-Accept", accept)
+        self.end_headers()
+        self.close_connection = True
+        sock = self.connection
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)  # nichts sammeln, sofort senden
+        sock.settimeout(90)  # das Handy schickt alle 25 s ein Lebenszeichen
+        last_error = 0.0
+        while True:
+            try:
+                msg = self._ws_read()
+            except (OSError, EOFError, ValueError):
+                return
+            if msg is None:
+                return
+            try:
+                data = json.loads(msg)
+                name = data.pop("a", "")
+                if name == "ping" or name not in WS_ACTIONS:
+                    continue
+                self.mac.post_routes[name](data)
+            except UserError as e:
+                if time.monotonic() - last_error > 2:  # keine Fehlerflut beim Bewegen
+                    last_error = time.monotonic()
+                    self._ws_send(json.dumps({"error": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception:
+                traceback.print_exc()
+
+    def _ws_exact(self, n):
+        data = self.rfile.read(n)
+        if len(data) < n:
+            raise EOFError
+        return data
+
+    def _ws_read(self):
+        message = b""
+        while True:
+            b0, b1 = self._ws_exact(2)
+            opcode, length = b0 & 0x0F, b1 & 0x7F
+            if length == 126:
+                length = struct.unpack(">H", self._ws_exact(2))[0]
+            elif length == 127:
+                length = struct.unpack(">Q", self._ws_exact(8))[0]
+            if length > 65536:
+                raise ValueError("Nachricht zu groß")
+            mask = self._ws_exact(4) if b1 & 0x80 else b""
+            payload = self._ws_exact(length)
+            if mask:
+                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+            if opcode == 0x8:  # Verbindung schließen
+                self._ws_send(b"", 0x8)
+                return None
+            if opcode == 0x9:  # Ping -> Pong
+                self._ws_send(payload, 0xA)
+                continue
+            if opcode == 0xA:
+                continue
+            message += payload
+            if b0 & 0x80:  # letztes Teilstück
+                return message.decode("utf-8", "replace")
+
+    def _ws_send(self, payload, opcode=0x1):
+        n = len(payload)
+        if n < 126:
+            head = struct.pack(">BB", 0x80 | opcode, n)
+        elif n < 65536:
+            head = struct.pack(">BBH", 0x80 | opcode, 126, n)
+        else:
+            head = struct.pack(">BBQ", 0x80 | opcode, 127, n)
+        try:
+            self.wfile.write(head + payload)
+        except OSError:
+            pass
+
 
 def load_token(renew=False):
+    """Liefert (Schlüssel, neu_erzeugt)."""
     os.makedirs(CONFIG_DIR, exist_ok=True)
     if not renew and os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE) as f:
             token = f.read().strip()
         if len(token) >= 16:
-            return token
+            return token, False
     token = secrets.token_urlsafe(18)
     fd = os.open(TOKEN_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         f.write(token)
-    return token
+    return token, True
+
+
+def already_running(port):
+    """Antwortet auf dem Port schon unsere Fernbedienung?"""
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d/icon.png" % port, timeout=1) as r:
+            return r.headers.get("Server", "").startswith("MacRemote")
+    except Exception:
+        return False
+
+
+LAUNCHER = """#!/bin/bash
+# Läuft die Fernbedienung schon, nur den QR-Code zeigen – sonst im Terminal starten.
+if curl -s -o /dev/null --max-time 1 "http://127.0.0.1:%(port)d/icon.png"; then
+  open "http://localhost:%(port)d/pair"
+else
+  open -a Terminal "%(command)s"
+fi
+"""
+
+INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Mac-Fernbedienung</string>
+  <key>CFBundleDisplayName</key><string>Mac-Fernbedienung</string>
+  <key>CFBundleIdentifier</key><string>de.bruecke.mac-remote</string>
+  <key>CFBundleExecutable</key><string>start</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleVersion</key><string>1.0</string>
+  <key>LSUIElement</key><true/>
+</dict></plist>
+"""
+
+
+def install_app(port):
+    """Legt ~/Applications/Mac-Fernbedienung.app an (für Dock, Spotlight, Launchpad)."""
+    if not IS_MAC:
+        sys.exit("Das geht nur auf dem Mac.")
+    command = os.path.join(HERE, "start.command")
+    if '"' in command or "$" in command or "`" in command:
+        sys.exit("Der Ordnerpfad enthält Sonderzeichen (\" $ `) – bitte den Ordner umbenennen.")
+    app = os.path.expanduser("~/Applications/Mac-Fernbedienung.app")
+    contents = os.path.join(app, "Contents")
+    if os.path.isdir(app):
+        shutil.rmtree(app)
+    os.makedirs(os.path.join(contents, "MacOS"))
+    os.makedirs(os.path.join(contents, "Resources"))
+    launcher = os.path.join(contents, "MacOS", "start")
+    with open(launcher, "w") as f:
+        f.write(LAUNCHER % {"port": port, "command": command})
+    os.chmod(launcher, 0o755)
+    os.chmod(command, 0o755)
+    with open(os.path.join(contents, "Info.plist"), "w") as f:
+        f.write(INFO_PLIST)
+    png = os.path.join(tempfile.gettempdir(), "mac-remote-icon.png")
+    with open(png, "wb") as f:
+        f.write(app_icon(512))
+    quiet(["sips", "-s", "format", "icns", png, "--out",
+           os.path.join(contents, "Resources", "AppIcon.icns")])
+    os.unlink(png)
+    # Aus dem Internet geladene Dateien würde macOS beim Start blockieren
+    quiet(["xattr", "-dr", "com.apple.quarantine", HERE])
+    quiet(["touch", app])  # Finder/Dock zeigen das Symbol sofort
+    print("\n  Fertig: „Mac-Fernbedienung“ liegt jetzt in deinem Benutzerordner unter „Programme“.")
+    print("  Starten: ⌘ + Leertaste, „Fernbedienung“ tippen, Enter – oder ins Dock ziehen.")
+    print("  Läuft sie schon, zeigt ein Klick darauf den QR-Code zum Verbinden.")
+    print("  Wichtig: Den Ordner „mac-remote“ danach nicht mehr verschieben")
+    print("  (sonst einfach noch mal „python3 server.py --install“ ausführen).\n")
+    subprocess.Popen(["open", "-R", app])
 
 
 def lan_ip():
@@ -911,10 +1149,21 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--host", default="0.0.0.0", help="Adresse, auf der gelauscht wird")
     parser.add_argument("--new-token", action="store_true", help="neuen Zugangsschlüssel erzeugen")
-    parser.add_argument("--no-browser", action="store_true", help="Verbinden-Seite nicht öffnen")
+    parser.add_argument("--no-browser", action="store_true", help="Verbinden-Seite nie öffnen")
+    parser.add_argument("--pair", action="store_true", help="Verbinden-Seite beim Start öffnen")
+    parser.add_argument("--install", action="store_true",
+                        help="App „Mac-Fernbedienung“ zum schnellen Starten anlegen")
     args = parser.parse_args()
 
-    token = load_token(args.new_token)
+    if args.install:
+        return install_app(args.port)
+    if already_running(args.port):
+        print("\n  Die Fernbedienung läuft schon – ich zeige den QR-Code zum Verbinden.\n")
+        if IS_MAC:
+            subprocess.Popen(["open", "http://localhost:%d/pair" % args.port])
+        return
+
+    token, new_token = load_token(args.new_token)
     hosts = []
     ip = lan_ip()
     if ip:
@@ -946,7 +1195,8 @@ def main():
             print("  Hinweis: Für Maus & Tastatur braucht Terminal die Freigabe")
             print("  „Bedienungshilfen“ (Systemeinstellungen → Datenschutz & Sicherheit).\n")
             accessibility_trusted(prompt=True)
-        if not args.no_browser:
+        # QR-Code nur zeigen, wenn er gebraucht wird (erster Start, neuer Schlüssel)
+        if not args.no_browser and (new_token or args.pair):
             subprocess.Popen(["open", "http://localhost:%d/pair" % args.port])
     else:
         print("  (Kein Mac erkannt – die Oberfläche läuft, Befehle werden abgelehnt.)\n")

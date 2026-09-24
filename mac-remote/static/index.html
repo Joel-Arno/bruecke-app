@@ -160,6 +160,28 @@
   .tabs button.active{color:var(--gold)}
   .tabs svg,.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
+  /* ---------- iPad & Querformat: Trackpad links, Bedienung rechts ---------- */
+  @media (min-width: 700px){
+    main{display:grid;grid-template-columns:minmax(0,1fr) clamp(340px,36vw,430px);grid-template-rows:minmax(0,1fr)}
+    .pane{position:relative;inset:auto;grid-column:2;grid-row:1;padding:4px 16px 24px 6px}
+    #pane-pad{display:flex;flex-direction:column;gap:12px;grid-column:1;padding:4px 10px 16px 16px}
+    .pad-buttons{height:72px}
+    .pad-hint{font-size:13px}
+    .tabs{display:flex;justify-content:center;gap:6px}
+    .tabs button{flex:0 1 112px;font-size:11.5px}
+    .tabs button[data-tab="pad"]{display:none}
+    /* Monitor bekommt die volle Breite, dann ist das Bild groß genug zum Antippen */
+    .app[data-tab="screen"] #pane-pad{display:none}
+    .app[data-tab="screen"] #pane-screen{grid-column:1 / -1;padding-left:16px}
+    .app[data-tab="screen"] .shot-wrap{max-width:1100px;margin:0 auto 10px}
+    .app[data-tab="screen"] .shot-wrap img{height:calc(100dvh - 300px);object-fit:contain}
+    .app[data-tab="screen"] #pane-screen > :not(.shot-wrap){max-width:1100px;margin-left:auto;margin-right:auto}
+  }
+  @media (min-width: 700px) and (max-height: 500px){ /* Handy quer */
+    .pad-buttons{height:52px}
+    .top{padding:6px 16px}
+  }
+
   .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));z-index:50;
     transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:calc(100% - 32px);
     background:#F5F0E6;color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;
@@ -512,11 +534,15 @@
     history.replaceState(null, '', '?t=' + encodeURIComponent(token));
     showLock(false);
     refreshStatus();
+    connectWS();
   });
 
   // ---------- Tabs ----------
   const tabLoaders = {};
+  const wide = matchMedia('(min-width: 700px)');
   function showTab(name) {
+    if (wide.matches && name === 'pad') name = 'keys'; // Trackpad ist links immer da
+    $('.app').dataset.tab = name;
     $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
     $$('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
     settings.tab = name; saveSettings();
@@ -528,10 +554,50 @@
     if (b) showTab(b.dataset.tab);
   });
 
-  // ---------- Maus: Warteschlange, Bewegungen werden zusammengefasst ----------
+  // ---------- Maus über WebSocket: eine offene Leitung, ein Paket pro Bildschirm-Frame ----------
+  let ws = null, wsReady = false, wsRetry = 0;
+  function connectWS() {
+    if (!token || ws || !('WebSocket' in window)) return;
+    const sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?t=' + encodeURIComponent(token));
+    ws = sock;
+    sock.onopen = () => { wsReady = true; wsRetry = 0; };
+    sock.onmessage = e => { try { const d = JSON.parse(e.data); if (d.error) showError(new Error(d.error)); } catch {} };
+    sock.onclose = () => {
+      wsReady = false; ws = null;
+      if (document.visibilityState === 'visible') setTimeout(connectWS, Math.min(5000, 400 * 2 ** wsRetry++));
+    };
+  }
+  setInterval(() => { if (wsReady) ws.send('{"a":"ping"}'); }, 25000);
+
+  let pendMove = null, pendScroll = null, frameQueued = false;
+  const r2 = v => Math.round(v * 100) / 100;
+  function wsSend(name, body) {
+    const msg = Object.assign({ a: name }, body);
+    if ('dx' in msg) { msg.dx = r2(msg.dx); msg.dy = r2(msg.dy); }
+    try { ws.send(JSON.stringify(msg)); return true; } catch { return false; }
+  }
+  function flushFrame() {
+    frameQueued = false;
+    if (pendMove) { const m = pendMove; pendMove = null; if (!wsReady || !wsSend('mouse_move', m)) httpMouseOp('mouse_move', m); }
+    if (pendScroll) { const m = pendScroll; pendScroll = null; if (!wsReady || !wsSend('scroll', m)) httpMouseOp('scroll', m); }
+  }
+  function mouseOp(name, body) {
+    if (name === 'mouse_move' || name === 'scroll') {
+      if (name === 'mouse_move') pendMove = pendMove || { dx: 0, dy: 0 };
+      else pendScroll = pendScroll || { dx: 0, dy: 0 };
+      const p = name === 'mouse_move' ? pendMove : pendScroll;
+      p.dx += body.dx; p.dy += body.dy;
+      if (!frameQueued) { frameQueued = true; requestAnimationFrame(flushFrame); }
+      return;
+    }
+    flushFrame(); // Bewegung zuerst, damit an der richtigen Stelle geklickt wird
+    if (!wsReady || !wsSend(name, body)) httpMouseOp(name, body);
+  }
+
+  // Ersatzweg über HTTP, falls der WebSocket nicht verfügbar ist
   const mouseQueue = [];
   let mouseBusy = false;
-  function mouseOp(name, body) {
+  function httpMouseOp(name, body) {
     const last = mouseQueue[mouseQueue.length - 1];
     if ((name === 'mouse_move' || name === 'scroll') && last && last.name === name) {
       last.body.dx += body.dx; last.body.dy += body.dy;
@@ -552,7 +618,7 @@
 
   // ---------- Trackpad ----------
   const pad = $('#pad');
-  const T = { active: false, start: 0, moved: false, dist: 0, maxTouches: 0, x: 0, y: 0, t: 0 };
+  const T = { active: false, start: 0, moved: false, dist: 0, maxTouches: 0, x: 0, y: 0, t: 0, speed: 0 };
 
   function centroid(list) {
     let x = 0, y = 0;
@@ -567,7 +633,7 @@
   pad.addEventListener('touchstart', e => {
     e.preventDefault();
     if (!T.active) {
-      T.active = true; T.start = performance.now(); T.moved = false; T.dist = 0; T.maxTouches = 0;
+      T.active = true; T.start = performance.now(); T.moved = false; T.dist = 0; T.maxTouches = 0; T.speed = 0;
       pad.classList.add('touching');
     }
     T.maxTouches = Math.max(T.maxTouches, e.touches.length);
@@ -589,9 +655,10 @@
       const f = settings.scroll * (settings.invert ? -1 : 1);
       mouseOp('scroll', { dx: dx * f, dy: dy * f });
     } else {
-      // leichte Beschleunigung: schnelle Bewegungen gehen weiter
-      const speed = Math.hypot(dx, dy) / dt; // px pro ms
-      const gain = settings.sens * (1 + Math.min(speed, 2.5) * 0.9);
+      // leichte Beschleunigung: schnelle Bewegungen gehen weiter.
+      // Das Tempo wird geglättet, sonst springt die Verstärkung von Ereignis zu Ereignis.
+      T.speed = T.speed * 0.7 + (Math.hypot(dx, dy) / dt) * 0.3; // px pro ms
+      const gain = settings.sens * (1 + Math.min(T.speed, 2.5) * 0.9);
       mouseOp('mouse_move', { dx: dx * gain, dy: dy * gain });
     }
   }, { passive: false });
@@ -868,11 +935,17 @@
   });
   shot.addEventListener('click', e => {
     if (!$('#shotTap').checked) return;
-    const r = shot.getBoundingClientRect();
-    const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+    // Tatsächliche Bildfläche bestimmen (bei object-fit: contain gibt es Ränder)
+    const box = shot.getBoundingClientRect();
+    const scale = Math.min(box.width / shot.naturalWidth, box.height / shot.naturalHeight);
+    const w = shot.naturalWidth * scale, h = shot.naturalHeight * scale;
+    const left = box.left + (box.width - w) / 2, top = box.top + (box.height - h) / 2;
+    const fx = (e.clientX - left) / w, fy = (e.clientY - top) / h;
+    if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return; // Rand getroffen
+    const wrap = $('#shotWrap').getBoundingClientRect();
     const mark = document.createElement('div');
     mark.className = 'tap-mark';
-    mark.style.left = (fx * 100) + '%'; mark.style.top = (fy * 100) + '%';
+    mark.style.left = (e.clientX - wrap.left) + 'px'; mark.style.top = (e.clientY - wrap.top) + 'px';
     $('#shotWrap').appendChild(mark);
     setTimeout(() => mark.remove(), 600);
     act('tap_screen', { fx, fy }).then(() => { if (!autoShot) setTimeout(loadShot, 500); });
@@ -949,14 +1022,19 @@
     $('#sysInfo').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '–')}</dd>`).join('');
   }
   function poll() {
-    if (document.visibilityState === 'visible') refreshStatus();
+    if (document.visibilityState !== 'visible') return;
+    refreshStatus();
+    connectWS();
   }
   setInterval(poll, 5000);
   document.addEventListener('visibilitychange', poll);
 
+  wide.addEventListener('change', () => { if (wide.matches && settings.tab === 'pad') showTab('keys'); });
+
   // ---------- Start ----------
   showTab(settings.tab && $('#pane-' + settings.tab) ? settings.tab : 'pad');
   refreshStatus();
+  connectWS();
 })();
 </script>
 </body>
