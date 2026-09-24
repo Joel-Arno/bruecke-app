@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mac">
+<meta name="theme-color" content="#15120E">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="icon" href="/icon.png">
+<title>Mac-Fernbedienung</title>
+<style>
+  :root{
+    --bg:#15120E; --surface:#211D17; --surface-2:#2D281F; --press:#3A3329;
+    --line:rgba(245,240,230,.10); --text:#F5F0E6; --muted:#A99F8D;
+    --teal:#2B4C5C; --teal-2:#3F6E82; --orange:#C4622D; --gold:#F2C14E; --ink:#201C16;
+    --danger:#E0664F; --ok:#6CC08B;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    overscroll-behavior:none}
+  body{overflow:hidden}
+  [hidden]{display:none!important}
+
+  .app{display:flex;flex-direction:column;height:100vh;height:100dvh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px}
+  .conn{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0}
+  .conn #macName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none;transition:background .2s}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(108,192,139,.18)}
+  .dot.off{background:var(--danger)}
+  .top-info{color:var(--muted);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .banner{margin:0 16px 8px;padding:8px 12px;border-radius:12px;font-size:12.5px;line-height:1.35;
+    background:rgba(196,98,45,.16);border:1px solid rgba(196,98,45,.5)}
+
+  main{flex:1;min-height:0;position:relative}
+  .pane{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:4px 16px 24px;display:none}
+  .pane.active{display:block}
+
+  /* ---------- Trackpad ---------- */
+  .pad-pane.active{display:flex;flex-direction:column;gap:10px;padding-bottom:12px}
+  .pad-area{flex:1;min-height:0;display:flex;gap:10px}
+  .pad{flex:1;position:relative;border-radius:22px;border:1px solid var(--line);
+    background:radial-gradient(120% 90% at 30% 20%, #2A3E47 0%, #1D2A30 55%, #18201F 100%);
+    touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+    transition:border-color .15s}
+  .pad.touching{border-color:rgba(242,193,78,.55)}
+  .pad.dragging{border-color:var(--gold);box-shadow:inset 0 0 0 2px rgba(242,193,78,.35)}
+  .pad-hint{position:absolute;left:0;right:0;bottom:16px;text-align:center;color:var(--muted);
+    font-size:12px;line-height:1.6;pointer-events:none;padding:0 12px}
+  .scroll-strip{width:44px;border-radius:22px;border:1px solid var(--line);background:var(--surface);
+    touch-action:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+    padding:14px 0;color:var(--muted);font-size:12px;user-select:none;-webkit-user-select:none}
+  .scroll-strip .grip{flex:1;width:4px;margin:10px 0;border-radius:2px;
+    background:repeating-linear-gradient(to bottom, rgba(245,240,230,.25) 0 6px, transparent 6px 12px)}
+  .pad-buttons{display:grid;grid-template-columns:2fr 1fr 1fr 2fr;gap:8px;height:62px;flex:none}
+  .pad-buttons button{height:100%}
+
+  /* ---------- Bedienelemente ---------- */
+  button{font:inherit;color:var(--text);background:var(--surface-2);border:1px solid var(--line);
+    border-radius:12px;min-height:46px;padding:8px 10px;cursor:pointer;touch-action:manipulation;
+    user-select:none;-webkit-user-select:none;transition:transform .08s ease, background .15s}
+  button:active{transform:scale(.97);background:var(--press)}
+  button.toggle.on,button.primary{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:600}
+  button.danger{color:#FFD9CF;border-color:rgba(224,102,79,.45);background:rgba(224,102,79,.12)}
+  button.small{min-height:34px;padding:4px 12px;font-size:13px}
+  button svg{width:22px;height:22px;display:block;margin:auto}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:12px}
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .card-head h2{margin:0}
+  h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .row{display:flex;gap:8px;align-items:center}
+  .row > *{flex:1;min-width:0}
+  .row + .row, textarea + .row, input + .row{margin-top:8px}
+  .grid{display:grid;gap:8px;grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g5{grid-template-columns:repeat(5,1fr)}
+  .grid button{padding:8px 4px;font-size:14px}
+  .hint{color:var(--muted);font-size:12.5px;margin:8px 2px 0}
+  input[type=text],input[type=url],input[type=search],textarea{width:100%;font:inherit;font-size:16px;
+    color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;outline:none;-webkit-appearance:none;appearance:none}
+  input:focus,textarea:focus{border-color:rgba(242,193,78,.6)}
+  textarea{resize:vertical;min-height:72px}
+  label.check{display:flex;gap:10px;align-items:center;font-size:14px;padding:6px 2px}
+  label.check input{width:20px;height:20px;accent-color:var(--gold)}
+  .slider-row{display:flex;align-items:center;gap:10px}
+  .slider-row label{flex:0 0 96px;font-size:14px}
+  .slider-row output{flex:0 0 38px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  input[type=range]{flex:1;min-width:0;accent-color:var(--gold);height:34px}
+
+  /* Tastatur */
+  .xl{min-height:92px;font-size:34px}
+  .mods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+  .mods button{font-size:18px}
+  .arrows{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .arrows .up{grid-column:2}
+  .arrows .left{grid-column:1;grid-row:2}
+  .arrows .down{grid-column:2;grid-row:2}
+  .arrows .right{grid-column:3;grid-row:2}
+  .combo small{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+  .combo.on small{color:var(--ink)}
+
+  /* Medien */
+  .np{display:flex;gap:14px;align-items:center}
+  .np-art{width:64px;height:64px;border-radius:14px;flex:none;
+    background:linear-gradient(145deg,var(--orange),#8E3F1A);display:grid;place-items:center}
+  .np-art svg{width:30px;height:30px;fill:none;stroke:var(--text);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .np-text{min-width:0}
+  .np-app{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .np-title{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .np-artist{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .transport{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:10px;margin-bottom:12px}
+  .transport button{min-height:84px;border-radius:18px}
+  .transport button svg{width:30px;height:30px;fill:currentColor}
+  .transport .play{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  .transport .play svg{width:36px;height:36px}
+  .vol-row{display:flex;align-items:center;gap:10px}
+  .vol-row button{flex:0 0 52px;font-size:22px}
+  .vol-row + .row{margin-top:10px}
+  .vol-num{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums}
+
+  /* Apps */
+  .list{list-style:none;margin:0;padding:0}
+  .list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+  .list li:first-child{border-top:none}
+  .list .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .list li.front .name{font-weight:600;color:var(--gold)}
+  .list button{min-height:36px;padding:4px 12px;font-size:13px}
+  .list .launch{width:100%;text-align:left;background:none;border:none;padding:10px 2px;min-height:40px}
+  .list .launch:active{background:var(--press)}
+  .empty{color:var(--muted);font-size:14px;padding:6px 2px}
+
+  /* Monitor */
+  .shot-wrap{position:relative;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--line);
+    min-height:180px;display:grid;place-items:center;margin-bottom:10px}
+  .shot-wrap img{display:block;width:100%;height:auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  .shot-empty{color:var(--muted);font-size:14px;padding:24px;text-align:center}
+  .tap-mark{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+    border:2px solid var(--gold);pointer-events:none;animation:ping .5s ease-out forwards}
+  @keyframes ping{from{transform:scale(.4);opacity:1}to{transform:scale(1.6);opacity:0}}
+
+  /* System */
+  .info{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
+  .info dt{color:var(--muted)}
+  .info dd{margin:0;text-align:right}
+
+  /* Tab-Leiste */
+  .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;flex:none;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line)}
+  .tabs button{background:none;border:none;border-radius:10px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:3px;font-size:10.5px;color:var(--muted);padding:6px 0;min-height:50px}
+  .tabs button:active{background:var(--surface-2);transform:none}
+  .tabs button.active{color:var(--gold)}
+  .tabs svg,.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));z-index:50;
+    transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:calc(100% - 32px);
+    background:#F5F0E6;color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .2s, transform .2s}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.err{background:var(--danger);color:#fff}
+
+  .lock{position:fixed;inset:0;z-index:60;background:var(--bg);display:grid;place-items:center;padding:24px}
+  .lock .card{max-width:420px;width:100%;padding:22px}
+  .lock h1{font-size:22px;margin:0 0 8px}
+  .lock p{color:var(--muted);margin:0 0 16px}
+  .lock code{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="conn"><span class="dot" id="dot"></span><span id="macName">Verbinde …</span></div>
+    <div class="top-info" id="topInfo"></div>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+
+  <main>
+    <!-- ================= Maus ================= -->
+    <section class="pane pad-pane active" id="pane-pad">
+      <div class="pad-area">
+        <div class="pad" id="pad">
+          <div class="pad-hint">1 Finger bewegen · Tippen = Klick<br>2 Finger scrollen · 2-Finger-Tipp = Rechtsklick</div>
+        </div>
+        <div class="scroll-strip" id="scrollStrip" aria-label="Scrollen"><span>▲</span><div class="grip"></div><span>▼</span></div>
+      </div>
+      <div class="pad-buttons">
+        <button data-click="left">Links</button>
+        <button id="dragBtn" class="toggle">Halten</button>
+        <button data-click="double">2×</button>
+        <button data-click="right">Rechts</button>
+      </div>
+    </section>
+
+    <!-- ================= Tastatur ================= -->
+    <section class="pane" id="pane-keys">
+      <div class="card">
+        <h2>Präsentation / Video</h2>
+        <div class="row">
+          <button class="xl" data-key="left" aria-label="Zurück">◀︎</button>
+          <button class="xl" data-key="right" aria-label="Weiter">▶︎</button>
+        </div>
+        <div class="row">
+          <button data-key="space">Leertaste</button>
+          <button data-key="escape">Esc</button>
+          <button data-key="f" data-mods="cmd,ctrl">Vollbild</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Direkt tippen</h2>
+        <input type="text" id="liveInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" placeholder="Hier tippen – landet sofort auf dem Mac">
+        <p class="hint">Mit ⌘ ⇧ ⌥ ⌃ unten wird ein getippter Buchstabe zum Kurzbefehl (z. B. ⌘ + s).</p>
+      </div>
+
+      <div class="card">
+        <h2>Text senden</h2>
+        <textarea id="typeText" rows="3" placeholder="Längeren Text schreiben oder diktieren …"></textarea>
+        <div class="row">
+          <button id="typeSend">Tippen</button>
+          <button id="typeSendEnter" class="primary">Tippen + ⏎</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Tasten</h2>
+        <div class="mods" id="mods">
+          <button class="toggle" data-mod="cmd" aria-label="Command">⌘</button>
+          <button class="toggle" data-mod="shift" aria-label="Shift">⇧</button>
+          <button class="toggle" data-mod="alt" aria-label="Option">⌥</button>
+          <button class="toggle" data-mod="ctrl" aria-label="Control">⌃</button>
+        </div>
+        <div class="grid g5">
+          <button data-key="escape">esc</button>
+          <button data-key="tab">⇥</button>
+          <button data-key="backspace">⌫</button>
+          <button data-key="delete">⌦</button>
+          <button data-key="return">⏎</button>
+        </div>
+        <div class="arrows">
+          <button class="up" data-key="up">↑</button>
+          <button class="left" data-key="left">←</button>
+          <button class="down" data-key="down">↓</button>
+          <button class="right" data-key="right">→</button>
+        </div>
+        <div class="grid g4" style="margin-top:8px">
+          <button data-key="home">Pos1</button>
+          <button data-key="end">Ende</button>
+          <button data-key="pageup">Bild ↑</button>
+          <button data-key="pagedown">Bild ↓</button>
+        </div>
+        <div class="grid g5" style="margin-top:8px">
+          <button data-key="space">␣</button>
+          <button data-key="f1">F1</button>
+          <button data-key="f2">F2</button>
+          <button data-key="f5">F5</button>
+          <button data-key="f12">F12</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Kurzbefehle</h2>
+        <div class="grid">
+          <button class="combo" data-key="c" data-mods="cmd">Kopieren<small>⌘C</small></button>
+          <button class="combo" data-key="v" data-mods="cmd">Einfügen<small>⌘V</small></button>
+          <button class="combo" data-key="x" data-mods="cmd">Ausschneiden<small>⌘X</small></button>
+          <button class="combo" data-key="z" data-mods="cmd">Rückgängig<small>⌘Z</small></button>
+          <button class="combo" data-key="z" data-mods="cmd,shift">Wiederholen<small>⇧⌘Z</small></button>
+          <button class="combo" data-key="a" data-mods="cmd">Alles<small>⌘A</small></button>
+          <button class="combo" data-key="space" data-mods="cmd">Spotlight<small>⌘␣</small></button>
+          <button class="combo" data-key="tab" data-mods="cmd">App wechseln<small>⌘⇥</small></button>
+          <button class="combo" data-key="f" data-mods="cmd">Suchen<small>⌘F</small></button>
+          <button class="combo" data-key="t" data-mods="cmd">Neuer Tab<small>⌘T</small></button>
+          <button class="combo" data-key="w" data-mods="cmd">Schließen<small>⌘W</small></button>
+          <button class="combo" data-key="r" data-mods="cmd">Neu laden<small>⌘R</small></button>
+          <button class="combo" data-key="s" data-mods="cmd">Sichern<small>⌘S</small></button>
+          <button class="combo" data-key="n" data-mods="cmd">Neu<small>⌘N</small></button>
+          <button class="combo" data-key="q" data-mods="cmd" data-confirm="Aktive App beenden (⌘Q)?">Beenden<small>⌘Q</small></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Medien ================= -->
+    <section class="pane" id="pane-media">
+      <div class="card np">
+        <div class="np-art"><svg viewBox="0 0 24 24"><path d="M9 18.5V6.2l11-2.2v12.3"/><circle cx="6.5" cy="18.5" r="2.5"/><circle cx="17.5" cy="16.3" r="2.5"/></svg></div>
+        <div class="np-text">
+          <div class="np-app" id="npApp">Wiedergabe</div>
+          <div class="np-title" id="npTitle">Nichts erkannt</div>
+          <div class="np-artist" id="npArtist">Tasten steuern, was gerade läuft</div>
+        </div>
+      </div>
+      <div class="transport">
+        <button data-media="prev" aria-label="Zurück"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="play" data-media="playpause" aria-label="Wiedergabe/Pause"><svg viewBox="0 0 24 24"><path d="M4 5v14l9-7zM15 5h2.5v14H15zM19.5 5H22v14h-2.5z"/></svg></button>
+        <button data-media="next" aria-label="Weiter"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Lautstärke</h2><span class="vol-num" id="volNum">–</span></div>
+        <div class="vol-row">
+          <button id="volDown" aria-label="Leiser">−</button>
+          <input type="range" id="vol" min="0" max="100" step="1" value="0" aria-label="Lautstärke">
+          <button id="volUp" aria-label="Lauter">+</button>
+        </div>
+        <div class="row"><button id="muteBtn" class="toggle">Stumm</button></div>
+      </div>
+      <div class="card">
+        <h2>Bildschirmhelligkeit</h2>
+        <div class="row">
+          <button data-bright="down">☼ dunkler</button>
+          <button data-bright="up">☀︎ heller</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Apps ================= -->
+    <section class="pane" id="pane-apps">
+      <div class="card">
+        <h2>Webseite öffnen</h2>
+        <div class="row">
+          <input type="url" id="urlInput" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="z. B. youtube.com">
+          <button id="urlGo" class="primary" style="flex:0 0 96px">Öffnen</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Laufende Apps</h2><button class="small" id="appsRefresh">Aktualisieren</button></div>
+        <ul class="list" id="runningList"><li class="empty">Lade …</li></ul>
+      </div>
+      <div class="card">
+        <h2>App starten</h2>
+        <input type="search" id="appSearch" autocapitalize="off" autocorrect="off" placeholder="App suchen …">
+        <ul class="list" id="installedList" style="margin-top:6px"></ul>
+      </div>
+    </section>
+
+    <!-- ================= Monitor ================= -->
+    <section class="pane" id="pane-screen">
+      <div class="shot-wrap" id="shotWrap">
+        <img id="shot" alt="Bildschirm des Macs" hidden>
+        <div class="shot-empty" id="shotEmpty">Tippe auf „Aktualisieren“, um den Bildschirm des Macs zu sehen.</div>
+      </div>
+      <div class="row">
+        <button id="shotRefresh" class="primary">Aktualisieren</button>
+        <button id="shotAuto" class="toggle">Live (alle 2 s)</button>
+      </div>
+      <label class="check"><input type="checkbox" id="shotTap" checked> Tippen aufs Bild = Klick an dieser Stelle</label>
+      <p class="hint">Zeigt den Hauptbildschirm. Beim ersten Mal fragt macOS nach der Freigabe „Bildschirmaufnahme“ für Terminal.</p>
+    </section>
+
+    <!-- ================= System ================= -->
+    <section class="pane" id="pane-system">
+      <div class="card">
+        <dl class="info" id="sysInfo"></dl>
+      </div>
+      <div class="card">
+        <h2>Bildschirm &amp; Energie</h2>
+        <div class="grid g2">
+          <button data-power="display_off">Bildschirm aus</button>
+          <button data-power="lock">Sperren</button>
+          <button data-power="sleep">Ruhezustand</button>
+          <button data-power="screensaver">Bildschirmschoner</button>
+          <button id="awakeBtn" class="toggle">Wach halten</button>
+          <button data-ui="dark_mode">Hell / Dunkel</button>
+          <button data-ui="mission_control">Mission Control</button>
+          <button data-ui="show_desktop">Schreibtisch</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Zwischenablage</h2>
+        <textarea id="clipText" rows="3" placeholder="Text, der auf dem Mac eingefügt werden soll"></textarea>
+        <div class="row">
+          <button id="clipSend">→ an Mac</button>
+          <button id="clipGet">← vom Mac holen</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Nachricht an den Mac</h2>
+        <input type="text" id="msgText" placeholder="z. B. Essen ist fertig!">
+        <div class="row">
+          <button id="sayBtn">Vorlesen</button>
+          <button id="notifyBtn">Mitteilung</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Einstellungen</h2>
+        <div class="slider-row"><label for="setSens">Maus-Tempo</label><input type="range" id="setSens" min="0.5" max="4" step="0.1"><output id="outSens"></output></div>
+        <div class="slider-row"><label for="setScroll">Scroll-Tempo</label><input type="range" id="setScroll" min="0.5" max="5" step="0.1"><output id="outScroll"></output></div>
+        <label class="check"><input type="checkbox" id="setInvert"> Scrollrichtung umkehren</label>
+        <label class="check"><input type="checkbox" id="setTapClick"> Tippen aufs Trackpad = Klick</label>
+      </div>
+      <div class="card">
+        <h2>Vorsicht</h2>
+        <div class="grid">
+          <button class="danger" data-power="restart" data-confirm="Mac wirklich neu starten?">Neustart</button>
+          <button class="danger" data-power="shutdown" data-confirm="Mac wirklich ausschalten?">Ausschalten</button>
+          <button class="danger" data-power="logout" data-confirm="Wirklich abmelden?">Abmelden</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" id="tabs">
+    <button class="active" data-tab="pad"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M3 15h18M12 15v6"/></svg>Maus</button>
+    <button data-tab="keys"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7.5 14h9"/></svg>Tasten</button>
+    <button data-tab="media"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></svg>Medien</button>
+    <button data-tab="apps"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>Apps</button>
+    <button data-tab="screen"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Monitor</button>
+    <button data-tab="system"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg>System</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="lock" id="lock" hidden>
+  <div class="card">
+    <h1>Nicht verbunden</h1>
+    <p>Starte am Mac den Server und scanne den QR-Code, der sich dort öffnet (oder öffne am Mac <code>http://localhost:8765/pair</code>).</p>
+    <input type="text" id="tokenInput" autocapitalize="off" autocorrect="off" placeholder="…oder Schlüssel hier einfügen">
+    <div class="row"><button id="tokenSave" class="primary">Verbinden</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+
+  // ---------- Speicher (kann in privaten Tabs fehlen) ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  };
+
+  // ---------- Schlüssel ----------
+  // Der Schlüssel bleibt in der Adresse, damit er beim „Zum Home-Bildschirm“ mitkommt.
+  const params = new URLSearchParams(location.search);
+  let token = params.get('t') || store.get('token', '');
+  if (params.get('t')) store.set('token', token);
+
+  const settings = Object.assign({ sens: 1.6, scroll: 2, invert: false, tapClick: true, tab: 'pad' }, store.get('settings', {}));
+  const saveSettings = () => store.set('settings', settings);
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function toast(msg, isErr = false) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.toggle('err', isErr);
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), isErr ? 4200 : 1600);
+  }
+  let lastErr = 0;
+  function showError(e) {
+    if (e && e.auth) return;
+    const now = Date.now();
+    if (now - lastErr < 1500) return; // keine Fehlerflut bei Mausbewegungen
+    lastErr = now;
+    toast(e && e.message ? e.message : 'Fehler', true);
+  }
+
+  // ---------- API ----------
+  async function api(name, body) {
+    const opts = { method: body === undefined ? 'GET' : 'POST', headers: { 'X-Token': token } };
+    if (body !== undefined) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    let res;
+    try {
+      res = await fetch('/api/' + name, opts);
+    } catch {
+      setConnected(false);
+      throw new Error('Mac nicht erreichbar – läuft der Server?');
+    }
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (res.status === 401) {
+      showLock(true);
+      const err = new Error(data.error || 'Nicht berechtigt');
+      err.auth = true;
+      throw err;
+    }
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('Fehler ' + res.status));
+    return data;
+  }
+  const act = (name, body, okMsg) => api(name, body).then(d => { if (okMsg) toast(okMsg); return d; }).catch(showError);
+
+  // Befehle, deren Reihenfolge zählt (Tippen, Tasten), nacheinander senden
+  let chain = Promise.resolve();
+  const inOrder = (name, body) => (chain = chain.then(() => api(name, body)).catch(showError));
+
+  function showLock(on) {
+    $('#lock').hidden = !on;
+    if (on) setConnected(false);
+  }
+  $('#tokenSave').addEventListener('click', () => {
+    let v = $('#tokenInput').value.trim();
+    const m = v.match(/[?&]t=([^&#\s]+)/);
+    if (m) v = decodeURIComponent(m[1]);
+    if (!v) return;
+    token = v;
+    store.set('token', token);
+    history.replaceState(null, '', '?t=' + encodeURIComponent(token));
+    showLock(false);
+    refreshStatus();
+  });
+
+  // ---------- Tabs ----------
+  const tabLoaders = {};
+  function showTab(name) {
+    $$('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    $$('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+    settings.tab = name; saveSettings();
+    if (name !== 'screen') stopAutoShot();
+    if (tabLoaders[name]) tabLoaders[name]();
+  }
+  $('#tabs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-tab]');
+    if (b) showTab(b.dataset.tab);
+  });
+
+  // ---------- Maus: Warteschlange, Bewegungen werden zusammengefasst ----------
+  const mouseQueue = [];
+  let mouseBusy = false;
+  function mouseOp(name, body) {
+    const last = mouseQueue[mouseQueue.length - 1];
+    if ((name === 'mouse_move' || name === 'scroll') && last && last.name === name) {
+      last.body.dx += body.dx; last.body.dy += body.dy;
+    } else {
+      mouseQueue.push({ name, body: Object.assign({}, body) });
+    }
+    pumpMouse();
+  }
+  async function pumpMouse() {
+    if (mouseBusy) return;
+    mouseBusy = true;
+    while (mouseQueue.length) {
+      const op = mouseQueue.shift();
+      try { await api(op.name, op.body); } catch (e) { showError(e); }
+    }
+    mouseBusy = false;
+  }
+
+  // ---------- Trackpad ----------
+  const pad = $('#pad');
+  const T = { active: false, start: 0, moved: false, dist: 0, maxTouches: 0, x: 0, y: 0, t: 0 };
+
+  function centroid(list) {
+    let x = 0, y = 0;
+    for (const t of list) { x += t.clientX; y += t.clientY; }
+    return { x: x / list.length, y: y / list.length };
+  }
+  function resetRef(list) {
+    const c = centroid(list);
+    T.x = c.x; T.y = c.y; T.t = performance.now();
+  }
+
+  pad.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!T.active) {
+      T.active = true; T.start = performance.now(); T.moved = false; T.dist = 0; T.maxTouches = 0;
+      pad.classList.add('touching');
+    }
+    T.maxTouches = Math.max(T.maxTouches, e.touches.length);
+    resetRef(e.touches);
+  }, { passive: false });
+
+  pad.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const c = centroid(e.touches);
+    const now = performance.now();
+    const dx = c.x - T.x, dy = c.y - T.y;
+    const dt = Math.max(now - T.t, 1);
+    T.x = c.x; T.y = c.y; T.t = now;
+    // kleines Zittern beim Tippen soll kein Verschieben auslösen
+    T.dist += Math.hypot(dx, dy);
+    if (!T.moved && T.dist < 6) return;
+    T.moved = true;
+    if (e.touches.length >= 2) {
+      const f = settings.scroll * (settings.invert ? -1 : 1);
+      mouseOp('scroll', { dx: dx * f, dy: dy * f });
+    } else {
+      // leichte Beschleunigung: schnelle Bewegungen gehen weiter
+      const speed = Math.hypot(dx, dy) / dt; // px pro ms
+      const gain = settings.sens * (1 + Math.min(speed, 2.5) * 0.9);
+      mouseOp('mouse_move', { dx: dx * gain, dy: dy * gain });
+    }
+  }, { passive: false });
+
+  function touchEnd(e) {
+    e.preventDefault();
+    if (e.touches.length) { resetRef(e.touches); return; }
+    pad.classList.remove('touching');
+    T.active = false;
+    const quick = performance.now() - T.start < 260;
+    if (!T.moved && quick && settings.tapClick) {
+      mouseOp('click', { button: T.maxTouches >= 2 ? 'right' : 'left' });
+    }
+  }
+  pad.addEventListener('touchend', touchEnd, { passive: false });
+  pad.addEventListener('touchcancel', touchEnd, { passive: false });
+
+  // Maus am Computer (zum Ausprobieren im Desktop-Browser)
+  let mouseDown = null;
+  pad.addEventListener('mousedown', e => { mouseDown = { x: e.clientX, y: e.clientY, moved: false }; });
+  window.addEventListener('mousemove', e => {
+    if (!mouseDown) return;
+    const dx = e.clientX - mouseDown.x, dy = e.clientY - mouseDown.y;
+    if (!dx && !dy) return;
+    mouseDown.moved = true; mouseDown.x = e.clientX; mouseDown.y = e.clientY;
+    mouseOp('mouse_move', { dx: dx * settings.sens, dy: dy * settings.sens });
+  });
+  window.addEventListener('mouseup', () => {
+    if (mouseDown && !mouseDown.moved && settings.tapClick) mouseOp('click', { button: 'left' });
+    mouseDown = null;
+  });
+  pad.addEventListener('wheel', e => { e.preventDefault(); mouseOp('scroll', { dx: -e.deltaX, dy: -e.deltaY }); }, { passive: false });
+  pad.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Scroll-Leiste rechts (ein Finger)
+  const strip = $('#scrollStrip');
+  let stripY = null;
+  strip.addEventListener('touchstart', e => { e.preventDefault(); stripY = e.touches[0].clientY; }, { passive: false });
+  strip.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (stripY === null) return;
+    const y = e.touches[0].clientY, dy = y - stripY;
+    stripY = y;
+    const f = settings.scroll * 1.5 * (settings.invert ? -1 : 1);
+    mouseOp('scroll', { dx: 0, dy: dy * f });
+  }, { passive: false });
+  strip.addEventListener('touchend', () => { stripY = null; });
+
+  // Tasten unter dem Trackpad
+  $$('[data-click]').forEach(b => b.addEventListener('click', () => {
+    const kind = b.dataset.click;
+    mouseOp('click', { button: kind === 'right' ? 'right' : 'left', double: kind === 'double' });
+    if (dragOn) setDrag(false, true);
+  }));
+  let dragOn = false;
+  function setDrag(on, silent) {
+    dragOn = on;
+    $('#dragBtn').classList.toggle('on', on);
+    pad.classList.toggle('dragging', on);
+    if (!silent) mouseOp('drag', { on });
+  }
+  $('#dragBtn').addEventListener('click', () => setDrag(!dragOn));
+
+  // ---------- Tastatur ----------
+  const mods = new Set();
+  function toggleMod(m, on) {
+    if (on) mods.add(m); else mods.delete(m);
+    $$('#mods [data-mod]').forEach(b => b.classList.toggle('on', mods.has(b.dataset.mod)));
+  }
+  $('#mods').addEventListener('click', e => {
+    const b = e.target.closest('[data-mod]');
+    if (b) toggleMod(b.dataset.mod, !mods.has(b.dataset.mod));
+  });
+  function takeMods() {
+    const list = Array.from(mods);
+    mods.clear(); toggleMod('', false);
+    return list;
+  }
+  function pressKey(key, fixedMods) {
+    const m = fixedMods || takeMods();
+    inOrder('key', { key, mods: m });
+  }
+
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button[data-key]');
+    if (!b) return;
+    if (b.dataset.confirm && !confirm(b.dataset.confirm)) return;
+    const fixed = b.dataset.mods ? b.dataset.mods.split(',') : null;
+    pressKey(b.dataset.key, fixed);
+  });
+
+  // Direkt tippen: Eingaben abfangen und einzeln an den Mac schicken
+  const live = $('#liveInput');
+  const SENTINEL = ' '; // damit ⌫ auch bei leerem Feld ein Ereignis auslöst
+  let composing = false;
+  function resetLive() { live.value = SENTINEL; try { live.setSelectionRange(1, 1); } catch {} }
+  function sendLive(text) {
+    if (!text) return;
+    if (mods.size && text.length === 1) { pressKey(text.toLowerCase()); return; }
+    inOrder('type', { text });
+  }
+  live.addEventListener('focus', () => setTimeout(resetLive, 0));
+  live.addEventListener('blur', () => { live.value = ''; });
+  live.addEventListener('beforeinput', e => {
+    const t = e.inputType;
+    if (composing || t === 'insertCompositionText') return;
+    if (t === 'insertText' || t === 'insertReplacementText' || t === 'insertFromPaste') {
+      const d = e.data != null ? e.data : (e.dataTransfer ? e.dataTransfer.getData('text/plain') : '');
+      sendLive(d);
+    } else if (t === 'deleteContentBackward' || t === 'deleteWordBackward') {
+      pressKey('backspace');
+    } else if (t === 'insertLineBreak' || t === 'insertParagraph') {
+      pressKey('return');
+    } else {
+      return;
+    }
+    e.preventDefault();
+  });
+  live.addEventListener('compositionstart', () => { composing = true; });
+  live.addEventListener('compositionend', e => { composing = false; sendLive(e.data); resetLive(); });
+  live.addEventListener('input', () => {
+    // Fallback für Browser ohne abbrechbares beforeinput
+    if (composing) return;
+    const v = live.value;
+    if (v === SENTINEL) return;
+    if (v.startsWith(SENTINEL) && v.length > 1) sendLive(v.slice(1));
+    else if (v.length < SENTINEL.length) pressKey('backspace');
+    resetLive();
+  });
+  live.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); pressKey('return'); }
+  });
+
+  function sendTyped(withEnter) {
+    const ta = $('#typeText');
+    const text = ta.value;
+    if (!text) { toast('Erst Text eingeben'); return; }
+    inOrder('type', { text: withEnter ? text + '\n' : text });
+    ta.value = '';
+    toast('Getippt');
+  }
+  $('#typeSend').addEventListener('click', () => sendTyped(false));
+  $('#typeSendEnter').addEventListener('click', () => sendTyped(true));
+
+  // ---------- Medien ----------
+  $$('[data-media]').forEach(b => b.addEventListener('click', () => {
+    act('media', { action: b.dataset.media }).then(() => setTimeout(refreshStatus, 600));
+  }));
+  $$('[data-bright]').forEach(b => b.addEventListener('click', () => act('brightness', { dir: b.dataset.bright })));
+
+  const vol = $('#vol');
+  let volBusy = false, volWanted = null, volTouching = false;
+  function showVolume(v, muted) {
+    if (v !== null && v !== undefined && !volTouching) vol.value = v;
+    $('#volNum').textContent = v === null || v === undefined ? '–' : (muted ? 'stumm' : v);
+    $('#muteBtn').classList.toggle('on', !!muted);
+  }
+  async function sendVolume() {
+    if (volBusy || volWanted === null) return;
+    volBusy = true;
+    const level = volWanted; volWanted = null;
+    try { const d = await api('volume', { level }); showVolume(d.volume, d.muted); }
+    catch (e) { showError(e); }
+    volBusy = false;
+    sendVolume();
+  }
+  vol.addEventListener('input', () => { volWanted = +vol.value; $('#volNum').textContent = vol.value; sendVolume(); });
+  vol.addEventListener('pointerdown', () => { volTouching = true; });
+  vol.addEventListener('touchstart', () => { volTouching = true; }, { passive: true });
+  ['pointerup', 'touchend', 'change'].forEach(ev => vol.addEventListener(ev, () => setTimeout(() => { volTouching = false; }, 400)));
+  $('#volDown').addEventListener('click', () => act('volume', { delta: -6 }).then(d => d && showVolume(d.volume, d.muted)));
+  $('#volUp').addEventListener('click', () => act('volume', { delta: 6 }).then(d => d && showVolume(d.volume, d.muted)));
+  $('#muteBtn').addEventListener('click', () => act('volume', { mute: 'toggle' }).then(d => d && showVolume(d.volume, d.muted)));
+
+  function showPlaying(p) {
+    const names = { Spotify: 'Spotify', Music: 'Apple Music' };
+    const states = { playing: 'läuft', paused: 'pausiert', stopped: 'gestoppt' };
+    if (p && (p.title || p.state)) {
+      $('#npApp').textContent = (names[p.app] || p.app) + (states[p.state] ? ' · ' + states[p.state] : '');
+      $('#npTitle').textContent = p.title || '—';
+      $('#npArtist').textContent = p.artist || '';
+    } else {
+      $('#npApp').textContent = 'Wiedergabe';
+      $('#npTitle').textContent = 'Nichts erkannt';
+      $('#npArtist').textContent = 'Tasten steuern, was gerade läuft';
+    }
+  }
+
+  // ---------- Apps ----------
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function loadRunning() {
+    const ul = $('#runningList');
+    try {
+      const d = await api('apps');
+      if (!d.apps.length) { ul.innerHTML = '<li class="empty">Keine Apps gefunden</li>'; return; }
+      ul.innerHTML = d.apps.map((a, i) =>
+        `<li class="${a.active ? 'front' : ''}"><span class="name">${esc(a.name)}</span>` +
+        `<button data-front="${i}">Nach vorn</button><button class="danger" data-quit="${i}">Beenden</button></li>`).join('');
+      ul._apps = d.apps;
+    } catch (e) {
+      ul.innerHTML = '<li class="empty">' + esc(e.message) + '</li>';
+    }
+  }
+  $('#runningList').addEventListener('click', e => {
+    const ul = $('#runningList');
+    const b = e.target.closest('button');
+    if (!b || !ul._apps) return;
+    const front = b.dataset.front !== undefined;
+    const a = ul._apps[+(front ? b.dataset.front : b.dataset.quit)];
+    if (!a) return;
+    if (front) act('app_activate', { bundle: a.bundle, name: a.name }, a.name + ' ist vorne').then(() => setTimeout(loadRunning, 500));
+    else if (confirm(a.name + ' beenden?')) act('app_quit', { bundle: a.bundle, name: a.name }, a.name + ' wird beendet').then(() => setTimeout(loadRunning, 1200));
+  });
+  $('#appsRefresh').addEventListener('click', loadRunning);
+
+  let installed = null;
+  async function loadInstalled() {
+    if (installed) return;
+    try { installed = (await api('installed')).apps; renderInstalled(); }
+    catch (e) { $('#installedList').innerHTML = '<li class="empty">' + esc(e.message) + '</li>'; }
+  }
+  function renderInstalled() {
+    if (!installed) return;
+    const q = $('#appSearch').value.trim().toLowerCase();
+    const hits = installed.filter(a => !q || a.name.toLowerCase().includes(q)).slice(0, 60);
+    $('#installedList').innerHTML = hits.length
+      ? hits.map(a => `<li><button class="launch" data-path="${esc(a.path)}">${esc(a.name)}</button></li>`).join('')
+      : '<li class="empty">Nichts gefunden</li>';
+  }
+  $('#appSearch').addEventListener('input', renderInstalled);
+  $('#installedList').addEventListener('click', e => {
+    const b = e.target.closest('[data-path]');
+    if (b) act('app_launch', { path: b.dataset.path }, b.textContent + ' wird geöffnet').then(() => setTimeout(loadRunning, 1500));
+  });
+  function openUrl() {
+    const url = $('#urlInput').value.trim();
+    if (!url) return;
+    act('open_url', { url }, 'Geöffnet');
+  }
+  $('#urlGo').addEventListener('click', openUrl);
+  $('#urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); openUrl(); } });
+  tabLoaders.apps = () => { loadRunning(); loadInstalled(); };
+
+  // ---------- Monitor ----------
+  const shot = $('#shot');
+  let autoShot = false, shotTimer = null, shotLoading = false;
+  function loadShot() {
+    if (shotLoading) return;
+    shotLoading = true;
+    $('#shotRefresh').textContent = 'Lädt …';
+    shot.src = '/api/screenshot?t=' + encodeURIComponent(token) + '&_=' + Date.now();
+  }
+  shot.addEventListener('load', () => {
+    shotLoading = false;
+    shot.hidden = false; $('#shotEmpty').hidden = true;
+    $('#shotRefresh').textContent = 'Aktualisieren';
+    if (autoShot) shotTimer = setTimeout(loadShot, 2000);
+  });
+  shot.addEventListener('error', () => {
+    shotLoading = false;
+    $('#shotRefresh').textContent = 'Aktualisieren';
+    stopAutoShot();
+    toast('Kein Bild – Freigabe „Bildschirmaufnahme“ für Terminal prüfen.', true);
+  });
+  function stopAutoShot() {
+    autoShot = false; clearTimeout(shotTimer);
+    $('#shotAuto').classList.remove('on');
+  }
+  $('#shotRefresh').addEventListener('click', loadShot);
+  $('#shotAuto').addEventListener('click', () => {
+    if (autoShot) { stopAutoShot(); return; }
+    autoShot = true; $('#shotAuto').classList.add('on');
+    loadShot();
+  });
+  shot.addEventListener('click', e => {
+    if (!$('#shotTap').checked) return;
+    const r = shot.getBoundingClientRect();
+    const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+    const mark = document.createElement('div');
+    mark.className = 'tap-mark';
+    mark.style.left = (fx * 100) + '%'; mark.style.top = (fy * 100) + '%';
+    $('#shotWrap').appendChild(mark);
+    setTimeout(() => mark.remove(), 600);
+    act('tap_screen', { fx, fy }).then(() => { if (!autoShot) setTimeout(loadShot, 500); });
+  });
+
+  // ---------- System ----------
+  $$('[data-power]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.confirm && !confirm(b.dataset.confirm)) return;
+    act('power', { action: b.dataset.power }, 'Erledigt');
+  }));
+  $$('[data-ui]').forEach(b => b.addEventListener('click', () => act('ui', { what: b.dataset.ui }).then(() => setTimeout(refreshStatus, 800))));
+  $('#awakeBtn').addEventListener('click', () => {
+    const on = !$('#awakeBtn').classList.contains('on');
+    act('awake', { on }, on ? 'Mac bleibt wach' : 'Mac darf wieder schlafen').then(d => d && $('#awakeBtn').classList.toggle('on', d.awake));
+  });
+  $('#clipSend').addEventListener('click', () => {
+    const text = $('#clipText').value;
+    if (!text) { toast('Erst Text eingeben'); return; }
+    act('clipboard', { text }, 'In der Zwischenablage des Macs – dort mit ⌘V einfügen');
+  });
+  $('#clipGet').addEventListener('click', () => api('clipboard').then(d => {
+    const ta = $('#clipText');
+    ta.value = d.text;
+    ta.focus(); ta.select();
+    toast(d.text ? 'Geholt – jetzt kopieren' : 'Zwischenablage ist leer');
+  }).catch(showError));
+  $('#sayBtn').addEventListener('click', () => { const text = $('#msgText').value.trim(); if (text) act('say', { text }, 'Wird vorgelesen'); });
+  $('#notifyBtn').addEventListener('click', () => { const text = $('#msgText').value.trim(); if (text) act('notify', { text }, 'Mitteilung gesendet'); });
+
+  // Einstellungen
+  function bindRange(id, outId, key) {
+    const el = $(id), out = $(outId);
+    el.value = settings[key]; out.textContent = (+settings[key]).toFixed(1);
+    el.addEventListener('input', () => { settings[key] = +el.value; out.textContent = (+el.value).toFixed(1); saveSettings(); });
+  }
+  bindRange('#setSens', '#outSens', 'sens');
+  bindRange('#setScroll', '#outScroll', 'scroll');
+  $('#setInvert').checked = settings.invert;
+  $('#setInvert').addEventListener('change', e => { settings.invert = e.target.checked; saveSettings(); });
+  $('#setTapClick').checked = settings.tapClick;
+  $('#setTapClick').addEventListener('change', e => { settings.tapClick = e.target.checked; saveSettings(); });
+
+  // ---------- Status ----------
+  function setConnected(on) {
+    $('#dot').className = 'dot ' + (on ? 'on' : 'off');
+    if (!on) $('#macName').textContent = 'Keine Verbindung';
+  }
+  const batteryText = b => b ? b.percent + ' %' + (b.state === 'charging' || b.state === 'charged' || b.ac ? ' ⚡︎' : '') : '';
+  async function refreshStatus() {
+    if (!token) { showLock(true); return; }
+    let s;
+    try { s = await api('status'); } catch (e) { if (!e.auth) setConnected(false); return; }
+    showLock(false);
+    setConnected(true);
+    $('#macName').textContent = s.name || 'Mac';
+    $('#topInfo').textContent = batteryText(s.battery);
+    showVolume(s.volume, s.muted);
+    showPlaying(s.playing);
+    $('#awakeBtn').classList.toggle('on', !!s.awake);
+    const banner = $('#banner');
+    if (s.accessibility === false) {
+      banner.hidden = false;
+      banner.textContent = 'Maus & Tastatur gesperrt: am Mac unter Datenschutz & Sicherheit → Bedienungshilfen „Terminal“ einschalten, dann Server neu starten.';
+    } else {
+      banner.hidden = true;
+    }
+    const rows = [
+      ['Mac', s.name],
+      ['macOS', s.macos],
+      ['Akku', s.battery ? batteryText(s.battery) + ' · ' + s.battery.state : 'Netzteil'],
+      ['Darstellung', s.dark ? 'Dunkel' : 'Hell'],
+      ['Bedienungshilfen', s.accessibility === false ? 'fehlt ✗' : s.accessibility ? 'erlaubt ✓' : 'unbekannt'],
+    ];
+    $('#sysInfo').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '–')}</dd>`).join('');
+  }
+  function poll() {
+    if (document.visibilityState === 'visible') refreshStatus();
+  }
+  setInterval(poll, 5000);
+  document.addEventListener('visibilitychange', poll);
+
+  // ---------- Start ----------
+  showTab(settings.tab && $('#pane-' + settings.tab) ? settings.tab : 'pad');
+  refreshStatus();
+})();
+</script>
+</body>
+</html>
