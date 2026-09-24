@@ -21,6 +21,7 @@ import re
 import secrets
 import shutil
 import socket
+import ssl
 import struct
 import subprocess
 import sys
@@ -37,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(HERE, "static")
 CONFIG_DIR = os.path.expanduser("~/.mac-remote")
 TOKEN_FILE = os.path.join(CONFIG_DIR, "token")
+TLS_DIR = os.path.join(CONFIG_DIR, "tls")
 IS_MAC = sys.platform == "darwin"
 # pbcopy/pbpaste/say brauchen eine UTF-8-Umgebung, sonst werden Umlaute kaputt.
 ENV = dict(os.environ, LANG="en_US.UTF-8", LC_ALL="en_US.UTF-8")
@@ -462,6 +464,8 @@ class Mac:
         self._quartz = None
         self._quartz_error = "nur auf einem Mac verfügbar"
         self.caffeinate = None
+        self.https_port = None  # gesetzt, wenn der HTTPS-Server läuft
+        self.local_host = None  # z. B. „MacBook-Air-von-Joel.local“
         if IS_MAC:
             try:
                 self._quartz = Quartz()
@@ -496,6 +500,7 @@ class Mac:
             "macos": quiet(["sw_vers", "-productVersion"]),
             "accessibility": accessibility_trusted(),
             "awake": bool(self.caffeinate and self.caffeinate.poll() is None),
+            "https_port": self.https_port, "local_host": self.local_host,
             "dark": quiet(["defaults", "read", "-g", "AppleInterfaceStyle"]) == "Dark",
             "battery": None, "volume": None, "muted": None, "playing": None,
         }
@@ -874,7 +879,7 @@ class Server(ThreadingHTTPServer):
 
     def handle_error(self, request, client_address):
         # Handy gesperrt, App gewechselt, WLAN weg: normal, kein Grund für einen Fehlertext
-        if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError, socket.timeout)):
+        if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError, socket.timeout, ssl.SSLError)):
             return
         super().handle_error(request, client_address)
 
@@ -889,6 +894,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         pass  # keine Zeile pro Mausbewegung
+
+    def setup(self):
+        # TLS-Handshake im eigenen Thread, damit ein langsames Gerät niemanden blockiert
+        if isinstance(self.request, ssl.SSLSocket):
+            self.request.settimeout(10)
+            self.request.do_handshake()
+            self.request.settimeout(None)
+        super().setup()
 
     def _send(self, status, body, ctype="application/json; charset=utf-8", cache=False):
         if isinstance(body, (dict, list)):
@@ -934,6 +947,13 @@ class Handler(BaseHTTPRequestHandler):
         if method == "GET" and path in ("/", "/index.html"):
             with open(os.path.join(STATIC_DIR, "index.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if method == "GET" and path == "/ca.crt":
+            # Öffentliches Zertifikat (kein Geheimnis) – das iPhone installiert es als Profil
+            try:
+                with open(os.path.join(TLS_DIR, "ca.crt"), "rb") as f:
+                    return self._send(200, f.read(), "application/x-x509-ca-cert")
+            except OSError:
+                return self._send(404, {"ok": False, "error": "HTTPS ist nicht eingerichtet."})
         if method == "GET" and path in ("/icon.png", "/apple-touch-icon.png", "/favicon.ico"):
             return self._send(200, self.icon, "image/png", cache=True)
         if method == "GET" and path == "/ws":
@@ -1082,6 +1102,68 @@ def already_running(port):
         return False
 
 
+def _openssl(*args, cwd):
+    p = subprocess.run(["openssl"] + list(args), cwd=cwd, capture_output=True, text=True)
+    if p.returncode != 0:
+        raise RuntimeError((p.stderr or p.stdout).strip().splitlines()[-1:] or "openssl")
+
+
+def ensure_certs(hosts, renew=False):
+    """Eigenes Zertifikat für HTTPS (nötig für die Bewegungssensoren am Handy).
+
+    Einmalig wird eine kleine Zertifizierungsstelle (CA) erzeugt, die genau ein
+    Server-Zertifikat unterschreibt. Danach wird ihr privater Schlüssel gelöscht:
+    Selbst wer später an den Mac kommt, kann damit keine weiteren Zertifikate
+    ausstellen, denen das iPhone vertrauen würde.
+    Liefert (Zertifikat, Schlüssel) oder None, wenn openssl fehlt.
+    """
+    crt, key, ca = (os.path.join(TLS_DIR, n) for n in ("server.crt", "server.key", "ca.crt"))
+    if not renew and all(os.path.exists(f) for f in (crt, key, ca)):
+        return crt, key
+    if not shutil.which("openssl"):
+        return None
+    if os.path.isdir(TLS_DIR):
+        shutil.rmtree(TLS_DIR)
+    os.makedirs(TLS_DIR, mode=0o700)
+    names = ["DNS:localhost", "IP:127.0.0.1"]
+    for h in hosts:
+        names.append(("IP:" if re.fullmatch(r"[\d.]+", h) else "DNS:") + h)
+    with open(os.path.join(TLS_DIR, "ca.cnf"), "w") as f:
+        f.write("[req]\ndistinguished_name = dn\n[dn]\n[v3_ca]\n"
+                "basicConstraints = critical, CA:TRUE, pathlen:0\n"
+                "keyUsage = critical, keyCertSign, cRLSign\n"
+                "subjectKeyIdentifier = hash\n")
+    with open(os.path.join(TLS_DIR, "server.ext"), "w") as f:
+        f.write("basicConstraints = CA:FALSE\n"
+                "keyUsage = critical, digitalSignature, keyEncipherment\n"
+                "extendedKeyUsage = serverAuth\n"
+                "subjectAltName = %s\n" % ", ".join(dict.fromkeys(names)))
+    who = (quiet(["scutil", "--get", "ComputerName"]) if IS_MAC else None) or socket.gethostname()
+    who = re.sub(r"[^\w .-]", "", who)[:40] or "Mac"
+    try:
+        _openssl("req", "-x509", "-new", "-newkey", "rsa:2048", "-nodes", "-sha256", "-days", "3650",
+                 "-keyout", "ca.key", "-out", "ca.crt", "-subj", "/CN=Mac-Fernbedienung %s" % who,
+                 "-config", "ca.cnf", "-extensions", "v3_ca", cwd=TLS_DIR)
+        _openssl("req", "-new", "-newkey", "rsa:2048", "-nodes", "-sha256", "-keyout", "server.key",
+                 "-out", "server.csr", "-subj", "/CN=Mac-Fernbedienung", "-config", "ca.cnf", cwd=TLS_DIR)
+        # 800 Tage: iOS lehnt länger gültige Server-Zertifikate ab
+        _openssl("x509", "-req", "-in", "server.csr", "-CA", "ca.crt", "-CAkey", "ca.key",
+                 "-set_serial", "0x" + secrets.token_hex(12), "-days", "800", "-sha256",
+                 "-extfile", "server.ext", "-out", "server.crt", cwd=TLS_DIR)
+    except RuntimeError as e:
+        print("  HTTPS nicht verfügbar (openssl: %s)" % e)
+        shutil.rmtree(TLS_DIR, ignore_errors=True)
+        return None
+    finally:
+        for n in ("ca.key", "server.csr", "ca.cnf", "server.ext"):
+            try:
+                os.unlink(os.path.join(TLS_DIR, n))
+            except OSError:
+                pass
+    os.chmod(key, 0o600)
+    return crt, key
+
+
 LAUNCHER = """#!/bin/bash
 # Läuft die Fernbedienung schon, nur den QR-Code zeigen – sonst im Terminal starten.
 if curl -s -o /dev/null --max-time 1 "http://127.0.0.1:%(port)d/icon.png"; then
@@ -1163,6 +1245,10 @@ def main():
     parser.add_argument("--pair", action="store_true", help="Verbinden-Seite beim Start öffnen")
     parser.add_argument("--install", action="store_true",
                         help="App „Mac-Fernbedienung“ zum schnellen Starten anlegen")
+    parser.add_argument("--no-https", action="store_true",
+                        help="keinen HTTPS-Server starten (dann keine Bewegungssteuerung)")
+    parser.add_argument("--new-cert", action="store_true",
+                        help="neues HTTPS-Zertifikat (danach am iPhone neu installieren)")
     args = parser.parse_args()
 
     if args.install:
@@ -1178,24 +1264,44 @@ def main():
     ip = lan_ip()
     if ip:
         hosts.append(ip)
-    local = quiet(["scutil", "--get", "LocalHostName"]) if IS_MAC else None
+    local = quiet(["scutil", "--get", "LocalHostName"])  # ohne Mac: None
     if local:
         hosts.append(local + ".local")
     hosts = hosts or ["localhost"]
     urls = ["http://%s:%d/?t=%s" % (h, args.port, token) for h in hosts]
 
     mac = Mac()
+    mac.local_host = local + ".local" if local else None
     Handler.mac, Handler.token, Handler.urls = mac, token, urls
     Handler.icon = app_icon()
     try:
         server = Server((args.host, args.port), Handler)
     except OSError as e:
-        sys.exit("Port %d ist belegt (%s). Läuft der Server schon? Sonst: --port 8766" % (args.port, e))
+        sys.exit("Port %d ist belegt (%s). Läuft der Server schon? Sonst: --port 8770" % (args.port, e))
+
+    # Zweiter Server mit HTTPS auf dem nächsten Port – nur für die Bewegungssteuerung nötig
+    https_server = None
+    certs = None if args.no_https else ensure_certs(hosts, args.new_cert)
+    if certs:
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain(*certs)
+            https_server = Server((args.host, args.port + 1), Handler)
+            https_server.socket = ctx.wrap_socket(https_server.socket, server_side=True,
+                                                  do_handshake_on_connect=False)
+            threading.Thread(target=https_server.serve_forever, daemon=True).start()
+            mac.https_port = args.port + 1
+        except (OSError, ssl.SSLError) as e:
+            print("  HTTPS nicht verfügbar: %s" % e)
+            https_server = None
 
     print("\n  Mac-Fernbedienung läuft.\n")
     print("  Am Handy öffnen (selbes WLAN):")
     for u in urls:
         print("    " + u)
+    if https_server:
+        print("\n  Mit Bewegungssteuerung (HTTPS, Einrichtung in der App):")
+        print("    https://%s:%d/?t=%s" % (hosts[-1], args.port + 1, token))
     print("\n  QR-Code am Mac:  http://localhost:%d/pair" % args.port)
     print("  Beenden: Ctrl+C\n")
 
@@ -1217,6 +1323,8 @@ def main():
     finally:
         mac.cleanup()
         server.server_close()
+        if https_server:
+            https_server.server_close()
 
 
 if __name__ == "__main__":

@@ -34,6 +34,8 @@
   .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(108,192,139,.18)}
   .dot.off{background:var(--danger)}
   .top-info{color:var(--muted);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .top-right{display:flex;align-items:center;gap:10px;flex:none}
+  .mode-btn{min-height:32px;padding:4px 12px;font-size:13px;border-radius:999px}
   .banner{margin:0 16px 8px;padding:8px 12px;border-radius:12px;font-size:12.5px;line-height:1.35;
     background:rgba(196,98,45,.16);border:1px solid rgba(196,98,45,.5)}
 
@@ -182,6 +184,55 @@
     .top{padding:6px 16px}
   }
 
+  /* ---------- Segment-Schalter Trackpad / Zeigen ---------- */
+  .seg{display:grid;grid-template-columns:1fr 1.4fr;gap:4px;padding:4px;border-radius:14px;
+    background:var(--surface);border:1px solid var(--line);flex:none}
+  .seg button{min-height:36px;border:none;background:none;font-size:14px;color:var(--muted);border-radius:10px}
+  .seg button.on{background:var(--surface-2);color:var(--text);font-weight:600}
+  .pad.air{background:radial-gradient(120% 90% at 50% 30%, #4A3A1E 0%, #2A2418 60%, #1E1A14 100%)}
+  .pad.air.touching{border-color:var(--gold);box-shadow:inset 0 0 0 2px rgba(242,193,78,.4)}
+
+  /* ---------- Gerätemodus: nur Maus / nur Tastatur ---------- */
+  .app[data-mode="mouse"] .tabs,.app[data-mode="keyboard"] .tabs{display:none}
+  .app[data-mode="mouse"] main,.app[data-mode="keyboard"] main{display:block}
+  .app[data-mode="mouse"] .pane,.app[data-mode="keyboard"] .pane,.app[data-mode="keyboard"] #pane-pad{display:none}
+  .app[data-mode="mouse"] #pane-pad{display:flex;flex-direction:column;gap:10px;position:absolute;inset:0;
+    padding:4px 16px calc(12px + env(safe-area-inset-bottom))}
+  .app[data-mode="mouse"] .pad-buttons{height:76px}
+  .app[data-mode="keyboard"] #pane-keys{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;
+    position:absolute;inset:0;padding:4px 16px calc(24px + env(safe-area-inset-bottom))}
+  .app[data-mode="keyboard"] #pane-keys .card{margin:0}
+  .app[data-mode="keyboard"] #card-live{order:-3}
+  .app[data-mode="keyboard"] #card-keys{order:-2}
+  .app[data-mode="keyboard"] #card-short{order:-1}
+  .app[data-mode="keyboard"] #liveInput{font-size:22px;padding:16px}
+  @media (min-width: 700px){
+    .app[data-mode="keyboard"] #pane-keys{grid-template-columns:1fr 1fr;max-width:1040px;margin:0 auto}
+    .app[data-mode="keyboard"] #card-live{grid-column:1 / -1}
+  }
+  .echo{font:15px/1.4 ui-monospace,"SF Mono",Menlo,monospace;color:var(--muted);min-height:21px;margin:-4px 2px 8px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left}
+  .echo:empty::before{content:"Getippter Text erscheint hier";opacity:.6}
+
+  /* ---------- Einblendungen ---------- */
+  .sheet{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.55);display:grid;place-items:end center;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+  .sheet-card{width:100%;max-width:520px;max-height:calc(100dvh - 32px);overflow-y:auto;background:var(--surface);
+    border:1px solid var(--line);border-radius:22px;padding:20px}
+  .sheet-card h1{font-size:20px;margin:0 0 6px}
+  .sheet-card > p{color:var(--muted);margin:0 0 14px;font-size:14px}
+  .sheet-card > p b{color:var(--text)}
+  .mode-opt{display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px}
+  .mode-opt b{display:block;font-size:16px}
+  .mode-opt span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+  .mode-opt.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+  .sheet-close{width:100%;margin-top:6px;background:none}
+  .steps{margin:0 0 12px;padding-left:22px;font-size:14px;line-height:1.5}
+  .steps li{margin-bottom:10px}
+  .btn-link{display:inline-block;padding:6px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text);text-decoration:none;font-weight:600}
+  .btn-link.primary{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+
   .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));z-index:50;
     transform:translate(-50%,16px);opacity:0;pointer-events:none;max-width:calc(100% - 32px);
     background:#F5F0E6;color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;
@@ -200,16 +251,23 @@
 <div class="app">
   <header class="top">
     <div class="conn"><span class="dot" id="dot"></span><span id="macName">Verbinde …</span></div>
-    <div class="top-info" id="topInfo"></div>
+    <div class="top-right">
+      <span class="top-info" id="topInfo"></span>
+      <button class="mode-btn" id="modeBtn" aria-label="Gerätemodus wählen">Alles ▾</button>
+    </div>
   </header>
   <div class="banner" id="banner" hidden></div>
 
   <main>
     <!-- ================= Maus ================= -->
     <section class="pane pad-pane active" id="pane-pad">
+      <div class="seg" id="padSeg">
+        <button class="on" data-padmode="touch">Trackpad</button>
+        <button data-padmode="air">Zeigen (Handy schwenken)</button>
+      </div>
       <div class="pad-area">
         <div class="pad" id="pad">
-          <div class="pad-hint">1 Finger bewegen · Tippen = Klick<br>2 Finger scrollen · 2-Finger-Tipp = Rechtsklick</div>
+          <div class="pad-hint" id="padHint">1 Finger bewegen · Tippen = Klick<br>2 Finger scrollen · 2-Finger-Tipp = Rechtsklick</div>
         </div>
         <div class="scroll-strip" id="scrollStrip" aria-label="Scrollen"><span>▲</span><div class="grip"></div><span>▼</span></div>
       </div>
@@ -223,7 +281,7 @@
 
     <!-- ================= Tastatur ================= -->
     <section class="pane" id="pane-keys">
-      <div class="card">
+      <div class="card" id="card-present">
         <h2>Präsentation / Video</h2>
         <div class="row">
           <button class="xl" data-key="left" aria-label="Zurück">◀︎</button>
@@ -236,13 +294,14 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-live">
         <h2>Direkt tippen</h2>
+        <div class="echo" id="liveEcho" aria-live="polite"></div>
         <input type="text" id="liveInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" placeholder="Hier tippen – landet sofort auf dem Mac">
-        <p class="hint">Mit ⌘ ⇧ ⌥ ⌃ unten wird ein getippter Buchstabe zum Kurzbefehl (z. B. ⌘ + s).</p>
+        <p class="hint">Mit ⌘ ⇧ ⌥ ⌃ unten wird ein getippter Buchstabe zum Kurzbefehl (z. B. ⌘ + s). Eine angesteckte Tastatur (z. B. am iPad) funktioniert auch – mit Pfeilen, Esc und ⌘-Kurzbefehlen.</p>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-text">
         <h2>Text senden</h2>
         <textarea id="typeText" rows="3" placeholder="Längeren Text schreiben oder diktieren …"></textarea>
         <div class="row">
@@ -251,7 +310,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-keys">
         <h2>Tasten</h2>
         <div class="mods" id="mods">
           <button class="toggle" data-mod="cmd" aria-label="Command">⌘</button>
@@ -287,7 +346,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="card-short">
         <h2>Kurzbefehle</h2>
         <div class="grid">
           <button class="combo" data-key="c" data-mods="cmd">Kopieren<small>⌘C</small></button>
@@ -416,6 +475,10 @@
         <div class="slider-row"><label for="setScroll">Scroll-Tempo</label><input type="range" id="setScroll" min="0.5" max="5" step="0.1"><output id="outScroll"></output></div>
         <label class="check"><input type="checkbox" id="setInvert"> Scrollrichtung umkehren</label>
         <label class="check"><input type="checkbox" id="setTapClick"> Tippen aufs Trackpad = Klick</label>
+        <div class="slider-row"><label for="setAir">Zeigen-Tempo</label><input type="range" id="setAir" min="0.3" max="3" step="0.1"><output id="outAir"></output></div>
+        <label class="check"><input type="checkbox" id="setAirX"> Zeigen: links/rechts umkehren</label>
+        <label class="check"><input type="checkbox" id="setAirY"> Zeigen: hoch/runter umkehren</label>
+        <div class="row" style="margin-top:6px"><button id="modeBtn2">Gerätemodus: Alles / Maus / Tastatur …</button></div>
       </div>
       <div class="card">
         <h2>Vorsicht</h2>
@@ -439,6 +502,33 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="sheet" id="modeSheet" hidden>
+  <div class="sheet-card">
+    <h1>Gerätemodus</h1>
+    <p>Für den Duo-Betrieb: iPhone auf <b>Nur Maus</b>, iPad auf <b>Nur Tastatur</b> – beide sind gleichzeitig verbunden. Jedes Gerät merkt sich seinen Modus.</p>
+    <button class="mode-opt" data-mode="all"><b>Alles</b><span>Trackpad, Tasten, Medien, Apps, Monitor, System</span></button>
+    <button class="mode-opt" data-mode="mouse"><b>Nur Maus</b><span>Der ganze Bildschirm ist Trackpad bzw. Zeiger</span></button>
+    <button class="mode-opt" data-mode="keyboard"><b>Nur Tastatur</b><span>Bildschirmtastatur bleibt offen, dazu Sondertasten und Kurzbefehle</span></button>
+    <button class="sheet-close">Schließen</button>
+  </div>
+</div>
+
+<div class="sheet" id="httpsSheet" hidden>
+  <div class="sheet-card">
+    <h1>Zeigen einrichten</h1>
+    <p>iPhone und iPad geben die Bewegungssensoren nur über eine verschlüsselte Verbindung (HTTPS) frei. Das richtest du einmalig ein:</p>
+    <ol class="steps" id="httpsSteps">
+      <li><a class="btn-link" id="caLink" href="/ca.crt">Zertifikat laden</a> und bei der Nachfrage <b>Erlauben</b> und dann <b>Schließen</b> antippen.</li>
+      <li>Öffne <b>Einstellungen</b>. Oben steht <b>Profil geladen</b>: antippen, dann <b>Installieren</b> (Code eingeben) und noch einmal <b>Installieren</b>.</li>
+      <li><b>Einstellungen → Allgemein → Info</b>, ganz unten <b>Zertifikatsvertrauenseinstellungen</b>: den Schalter bei <b>Mac-Fernbedienung …</b> einschalten.</li>
+      <li><a class="btn-link primary" id="httpsLink" href="#">Sichere Version öffnen</a> und diese wieder <b>zum Home-Bildschirm</b> hinzufügen. Dann <b>Zeigen</b> antippen und den Zugriff auf Bewegung erlauben.</li>
+    </ol>
+    <p class="hint">Android: Zertifikat laden, dann Einstellungen → Sicherheit → Verschlüsselung → Zertifikat installieren → CA-Zertifikat.</p>
+    <p class="hint" id="httpsNote"></p>
+    <button class="sheet-close">Schließen</button>
+  </div>
+</div>
 
 <div class="lock" id="lock" hidden>
   <div class="card">
@@ -467,7 +557,10 @@
   let token = params.get('t') || store.get('token', '');
   if (params.get('t')) store.set('token', token);
 
-  const settings = Object.assign({ sens: 1.6, scroll: 2, invert: false, tapClick: true, tab: 'pad' }, store.get('settings', {}));
+  const settings = Object.assign({
+    sens: 1.6, scroll: 2, invert: false, tapClick: true, tab: 'pad',
+    mode: 'all', air: 1, airX: false, airY: false,
+  }, store.get('settings', {}));
   const saveSettings = () => store.set('settings', settings);
 
   // ---------- Toast ----------
@@ -638,6 +731,7 @@
     }
     T.maxTouches = Math.max(T.maxTouches, e.touches.length);
     resetRef(e.touches);
+    if (air.on) { air.holding = e.touches.length === 1; air.holdStart = performance.now(); }
   }, { passive: false });
 
   pad.addEventListener('touchmove', e => {
@@ -651,6 +745,7 @@
     T.dist += Math.hypot(dx, dy);
     if (!T.moved && T.dist < 6) return;
     T.moved = true;
+    if (air.on && e.touches.length < 2) return; // beim Zeigen bewegt das Handy den Zeiger, nicht der Finger
     if (e.touches.length >= 2) {
       const f = settings.scroll * (settings.invert ? -1 : 1);
       mouseOp('scroll', { dx: dx * f, dy: dy * f });
@@ -665,6 +760,7 @@
 
   function touchEnd(e) {
     e.preventDefault();
+    air.holding = air.on && e.touches.length === 1;
     if (e.touches.length) { resetRef(e.touches); return; }
     pad.classList.remove('touching');
     T.active = false;
@@ -675,6 +771,80 @@
   }
   pad.addEventListener('touchend', touchEnd, { passive: false });
   pad.addEventListener('touchcancel', touchEnd, { passive: false });
+
+  // ---------- Zeigen: Handy wie einen Laserpointer schwenken (Gyroskop) ----------
+  // Solange ein Finger auf der Fläche liegt, dreht das Handy den Zeiger mit.
+  // Finger weg = Zeiger bleibt stehen (zum Umgreifen), kurzes Tippen = Klick.
+  const air = { on: false, holding: false, holdStart: 0, listening: false, up: [0, 0, 1] };
+  const PX_PER_DEGREE = 28;
+  const deadzone = v => (Math.abs(v) < 2 ? 0 : v - Math.sign(v) * 2); // Handzittern ausblenden
+  function onMotion(e) {
+    const g = e.accelerationIncludingGravity;
+    if (g && g.x != null) {
+      let x = g.x, y = g.y, z = g.z;
+      const n = Math.hypot(x, y, z) || 1;
+      x /= n; y /= n; z /= n;
+      // iOS und Android melden entgegengesetzte Vorzeichen; beim Zeigen liegt der
+      // Bildschirm eher oben, also so drehen, dass „oben“ aus dem Display zeigt.
+      if (z < 0) { x = -x; y = -y; z = -z; }
+      air.up = [air.up[0] * 0.9 + x * 0.1, air.up[1] * 0.9 + y * 0.1, air.up[2] * 0.9 + z * 0.1];
+    }
+    if (!air.on || !air.holding || performance.now() - air.holdStart < 120) return;
+    const r = e.rotationRate;
+    if (!r || r.alpha == null) return;
+    let dt = e.interval || 16;
+    if (dt < 1) dt *= 1000; // manche Browser liefern Sekunden statt Millisekunden
+    dt = Math.min(dt, 50);
+    const [ux, uy, uz] = air.up, un = Math.hypot(ux, uy, uz) || 1;
+    // Drehung um die senkrechte Achse = links/rechts, Kippen um die Querachse = hoch/runter
+    const yaw = (r.beta * ux + r.gamma * uy + r.alpha * uz) / un;
+    const pitch = r.beta;
+    const k = PX_PER_DEGREE * settings.air * dt / 1000;
+    const dx = -deadzone(yaw) * k * (settings.airX ? -1 : 1);
+    const dy = -deadzone(pitch) * k * (settings.airY ? -1 : 1);
+    if (dx || dy) mouseOp('mouse_move', { dx, dy });
+  }
+  async function enableAir() {
+    if (!window.isSecureContext) { openHttpsSheet(); return false; }
+    if (typeof DeviceMotionEvent === 'undefined') { toast('Dieses Gerät hat keine Bewegungssensoren', true); return false; }
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      try {
+        if (await DeviceMotionEvent.requestPermission() !== 'granted') {
+          toast('Zugriff auf Bewegung wurde nicht erlaubt', true);
+          return false;
+        }
+      } catch (err) { toast('Bewegung: ' + err.message, true); return false; }
+    }
+    if (!air.listening) { window.addEventListener('devicemotion', onMotion); air.listening = true; }
+    return true;
+  }
+  async function setPadMode(mode) {
+    if (mode === 'air' && !(await enableAir())) mode = 'touch';
+    air.on = mode === 'air';
+    air.holding = false;
+    $$('#padSeg button').forEach(b => b.classList.toggle('on', b.dataset.padmode === mode));
+    pad.classList.toggle('air', air.on);
+    $('#padHint').innerHTML = air.on
+      ? 'Finger auflegen und Handy schwenken – wie ein Laserpointer<br>Finger weg = Zeiger stoppt · kurz tippen = Klick'
+      : '1 Finger bewegen · Tippen = Klick<br>2 Finger scrollen · 2-Finger-Tipp = Rechtsklick';
+    if (air.on) toast('Zeigen aktiv – Finger auflegen und Handy schwenken');
+  }
+  $('#padSeg').addEventListener('click', e => {
+    const b = e.target.closest('[data-padmode]');
+    if (b) setPadMode(b.dataset.padmode);
+  });
+
+  // HTTPS-Einrichtung (nur nötig für Zeigen)
+  let lastStatus = {};
+  function openHttpsSheet() {
+    const port = lastStatus.https_port;
+    const host = lastStatus.local_host || location.hostname;
+    const link = $('#httpsLink');
+    if (port) link.href = 'https://' + host + ':' + port + '/?t=' + encodeURIComponent(token);
+    $('#httpsSteps').hidden = !port;
+    $('#httpsNote').textContent = port ? '' : 'Auf dem Mac läuft gerade kein HTTPS. Bitte die neueste Version des Servers starten (python3 server.py).';
+    $('#httpsSheet').hidden = false;
+  }
 
   // Maus am Computer (zum Ausprobieren im Desktop-Browser)
   let mouseDown = null;
@@ -755,11 +925,25 @@
   const SENTINEL = ' '; // damit ⌫ auch bei leerem Feld ein Ereignis auslöst
   let composing = false;
   function resetLive() { live.value = SENTINEL; try { live.setSelectionRange(1, 1); } catch {} }
+  // Zeigt die zuletzt getippten Zeichen als Rückmeldung
+  let echoText = '';
+  function echo(s) {
+    echoText = (s === '\b' ? echoText.slice(0, -1) : echoText + s).slice(-120);
+    $('#liveEcho').textContent = echoText;
+  }
   function sendLive(text) {
     if (!text) return;
     if (mods.size && text.length === 1) { pressKey(text.toLowerCase()); return; }
+    echo(text);
     inOrder('type', { text });
   }
+  function liveBackspace() { echo('\b'); pressKey('backspace'); }
+  function liveReturn() { echo(' ⏎ '); pressKey('return'); }
+
+  // Tasten antippen, ohne dass das Eingabefeld den Fokus (und damit die Bildschirmtastatur) verliert
+  document.addEventListener('mousedown', e => {
+    if (document.activeElement === live && e.target.closest('button') && !e.target.closest('.sheet')) e.preventDefault();
+  });
   live.addEventListener('focus', () => setTimeout(resetLive, 0));
   live.addEventListener('blur', () => { live.value = ''; });
   live.addEventListener('beforeinput', e => {
@@ -769,9 +953,9 @@
       const d = e.data != null ? e.data : (e.dataTransfer ? e.dataTransfer.getData('text/plain') : '');
       sendLive(d);
     } else if (t === 'deleteContentBackward' || t === 'deleteWordBackward') {
-      pressKey('backspace');
+      liveBackspace();
     } else if (t === 'insertLineBreak' || t === 'insertParagraph') {
-      pressKey('return');
+      liveReturn();
     } else {
       return;
     }
@@ -785,11 +969,42 @@
     const v = live.value;
     if (v === SENTINEL) return;
     if (v.startsWith(SENTINEL) && v.length > 1) sendLive(v.slice(1));
-    else if (v.length < SENTINEL.length) pressKey('backspace');
+    else if (v.length < SENTINEL.length) liveBackspace();
     resetLive();
   });
+  // Angesteckte Tastatur (z. B. am iPad): Sondertasten und ⌘/⌃/⌥-Kurzbefehle weiterreichen
+  const HW_KEYS = {
+    ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Escape: 'escape',
+    Tab: 'tab', Delete: 'delete', Home: 'home', End: 'end', PageUp: 'pageup', PageDown: 'pagedown',
+    F1: 'f1', F2: 'f2', F3: 'f3', F4: 'f4', F5: 'f5', F6: 'f6', F7: 'f7', F8: 'f8', F9: 'f9', F10: 'f10', F11: 'f11', F12: 'f12',
+  };
   live.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); pressKey('return'); }
+    if (e.isComposing) return;
+    const held = [];
+    if (e.metaKey) held.push('cmd');
+    if (e.ctrlKey) held.push('ctrl');
+    if (e.altKey) held.push('alt');
+    if (e.key === 'Enter' && !held.length) { e.preventDefault(); liveReturn(); return; }
+    if (HW_KEYS[e.key]) {
+      if (e.shiftKey) held.push('shift');
+      e.preventDefault();
+      pressKey(HW_KEYS[e.key], held);
+      return;
+    }
+    if (held.length && e.key.length === 1) {
+      // Mit ⌥ liefert e.key Sonderzeichen (z. B. „@“) – dann die physische Taste nehmen
+      let key = e.key.toLowerCase();
+      const m = e.code.match(/^(?:Key([A-Z])|Digit(\d))$/);
+      if (e.altKey && m) key = (m[1] || m[2]).toLowerCase();
+      if (e.shiftKey) held.push('shift');
+      e.preventDefault();
+      pressKey(key, held);
+      return;
+    }
+    if (held.length && (e.key === 'Enter' || e.key === 'Backspace')) {
+      e.preventDefault();
+      pressKey(e.key === 'Enter' ? 'return' : 'backspace', held);
+    }
   });
 
   function sendTyped(withEnter) {
@@ -987,6 +1202,34 @@
   $('#setInvert').addEventListener('change', e => { settings.invert = e.target.checked; saveSettings(); });
   $('#setTapClick').checked = settings.tapClick;
   $('#setTapClick').addEventListener('change', e => { settings.tapClick = e.target.checked; saveSettings(); });
+  bindRange('#setAir', '#outAir', 'air');
+  $('#setAirX').checked = settings.airX;
+  $('#setAirX').addEventListener('change', e => { settings.airX = e.target.checked; saveSettings(); });
+  $('#setAirY').checked = settings.airY;
+  $('#setAirY').addEventListener('change', e => { settings.airY = e.target.checked; saveSettings(); });
+
+  // ---------- Gerätemodus ----------
+  const MODE_LABELS = { all: 'Alles', mouse: 'Maus', keyboard: 'Tastatur' };
+  function applyMode(mode) {
+    if (!MODE_LABELS[mode]) mode = 'all';
+    settings.mode = mode; saveSettings();
+    $('.app').dataset.mode = mode;
+    $('#modeBtn').textContent = MODE_LABELS[mode] + ' ▾';
+    $$('.mode-opt').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    if (mode === 'keyboard' && air.on) setPadMode('touch');
+    if (mode === 'keyboard') stopAutoShot();
+  }
+  function openModeSheet() { $('#modeSheet').hidden = false; }
+  $('#modeBtn').addEventListener('click', openModeSheet);
+  $('#modeBtn2').addEventListener('click', openModeSheet);
+  $$('.mode-opt').forEach(b => b.addEventListener('click', () => {
+    applyMode(b.dataset.mode);
+    $('#modeSheet').hidden = true;
+    if (b.dataset.mode === 'keyboard') toast('Tippe ins Feld – die Tastatur bleibt dann offen');
+  }));
+  $$('.sheet').forEach(sh => sh.addEventListener('click', e => {
+    if (e.target === sh || e.target.closest('.sheet-close')) sh.hidden = true;
+  }));
 
   // ---------- Status ----------
   function setConnected(on) {
@@ -998,6 +1241,7 @@
     if (!token) { showLock(true); return; }
     let s;
     try { s = await api('status'); } catch (e) { if (!e.auth) setConnected(false); return; }
+    lastStatus = s;
     showLock(false);
     setConnected(true);
     $('#macName').textContent = s.name || 'Mac';
@@ -1032,6 +1276,7 @@
   wide.addEventListener('change', () => { if (wide.matches && settings.tab === 'pad') showTab('keys'); });
 
   // ---------- Start ----------
+  applyMode(settings.mode);
   showTab(settings.tab && $('#pane-' + settings.tab) ? settings.tab : 'pad');
   refreshStatus();
   connectWS();
