@@ -3,7 +3,7 @@ const CACHE = 'bimmelbahn-v1';
 const FILES = [
   './', 'index.html', 'style.css', 'manifest.webmanifest', 'fonts/fredoka-latin.woff2',
   'js/main.js',
-  'js/models.js', 'js/voxel.js', 'js/audio.js', 'js/storage.js', 'vendor/three.module.min.js',
+  'js/models.js', 'js/voxel.js', 'js/audio.js', 'vendor/three.module.min.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 
