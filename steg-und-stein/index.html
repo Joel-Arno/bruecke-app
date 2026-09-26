@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#bfe3e6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Steg &amp; Stein">
+  <meta name="description" content="Ein gemütliches Knobelspiel: Leg Steine und Planken ins Wasser, damit die Tiere nach Hause kommen.">
+  <title>Steg &amp; Stein</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="bubbles"></div>
+  <div id="floaters"></div>
+
+  <!-- Heimatinsel -->
+  <section id="home" class="screen">
+    <header class="topbar">
+      <div class="counters">
+        <span class="chip">🐚 <b id="h-shells">0</b></span>
+        <span class="chip">★ <b id="h-stars">0</b></span>
+      </div>
+      <div class="toggles">
+        <button id="btn-music" class="round ui" aria-label="Musik an/aus">♪</button>
+        <button id="btn-sfx" class="round ui" aria-label="Geräusche an/aus">🔔</button>
+      </div>
+    </header>
+    <h1 class="logo">Steg <span>&amp;</span> Stein</h1>
+    <p id="island-empty" class="island-note hidden">Deine Insel ist noch leer. Jedes Tier, das du nach Hause bringst, zieht hier ein.</p>
+    <div class="grow"></div>
+    <div class="home-actions">
+      <button id="btn-continue" class="btn primary ui"><span>Weiter auf der Reise</span><small id="continue-sub"></small></button>
+      <div class="row">
+        <button id="btn-journey" class="btn ui">🗺️ Reise</button>
+        <button id="btn-daily" class="btn ui">☀️ Tagesrätsel<small id="daily-sub"></small></button>
+      </div>
+      <div class="row">
+        <button id="btn-album" class="btn ui">📖 Album</button>
+        <button id="btn-build" class="btn ui">🔨 Insel schmücken</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Reise -->
+  <section id="journey" class="screen sheet ui hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Die Reise</h2>
+        <span class="chip dark">★ <b id="j-stars">0</b></span>
+        <button class="round dark" data-close aria-label="Schließen">✕</button>
+      </div>
+      <div id="chapters" class="scroll"></div>
+    </div>
+  </section>
+
+  <!-- Level -->
+  <section id="level" class="screen hidden">
+    <header class="topbar">
+      <button id="lv-back" class="round ui" aria-label="Zurück">←</button>
+      <div class="lv-title"><small id="lv-chapter"></small><b id="lv-name"></b></div>
+      <button id="lv-reset" class="round ui" aria-label="Alles aufheben">↺</button>
+    </header>
+    <div id="lv-goal" class="goal"></div>
+    <button id="lv-hint" class="hint ui hidden"><span id="lv-hint-text"></span><small>Verstanden</small></button>
+    <div class="grow"></div>
+    <div class="toolbar ui">
+      <button id="tool-stone" class="tool"><i>🪨</i><span>Stein</span><b>0</b></button>
+      <button id="tool-plank" class="tool"><i>🪵</i><span>Planke <em class="dir">↔</em></span><b>0</b></button>
+      <button id="tool-tide" class="tool"><i>🌊</i><span>Flut</span></button>
+      <button id="btn-go" class="go">Los!</button>
+    </div>
+  </section>
+
+  <!-- Ergebnis -->
+  <section id="result" class="screen block ui hidden">
+    <div class="panel center">
+      <h2 id="r-title">Alle sind zu Hause!</h2>
+      <div id="r-stars" class="stars"><span>★</span><span>★</span><span>★</span></div>
+      <p id="r-info"></p>
+      <div id="r-reward" class="reward"></div>
+      <div id="r-new" class="newfriends hidden"></div>
+      <button id="r-next" class="btn primary">Weiter</button>
+      <div class="row">
+        <button id="r-retry" class="btn">Nochmal</button>
+        <button id="r-home" class="btn">Zur Insel</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Album -->
+  <section id="album" class="screen sheet ui hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Album</h2>
+        <span id="a-count" class="chip dark"></span>
+        <button class="round dark" data-close aria-label="Schließen">✕</button>
+      </div>
+      <div id="album-grid" class="scroll"></div>
+    </div>
+  </section>
+
+  <!-- Insel schmücken -->
+  <section id="build" class="screen hidden">
+    <header class="topbar">
+      <span class="chip">🐚 <b id="b-shells">0</b></span>
+      <button id="b-done" class="btn small ui">Fertig</button>
+    </header>
+    <div class="grow"></div>
+    <div id="b-tip" class="tip">Wähle etwas aus und tippe auf einen freien Platz.</div>
+    <div class="shelf ui"><div id="shelf"></div></div>
+  </section>
+
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
