@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#5aa9c9">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Schatzhüpfer">
+  <meta name="description" content="Ein kleines Hüpfspiel für zwischendurch: über Straßen, Flüsse und Gleise, so weit du kannst.">
+  <title>Schatzhüpfer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="vignette"></div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-left">
+      <div id="score">0</div>
+      <div id="top">TOP 0</div>
+      <div id="daily-badge" class="badge hidden">📅 Tages-Challenge</div>
+    </div>
+    <div class="hud-right">
+      <div id="fish" class="pill">🐟 <span id="fish-count">0</span></div>
+      <button id="pause-btn" class="icon-btn ui" aria-label="Pause">❚❚</button>
+    </div>
+    <div id="power" class="hidden">
+      <span id="power-icon"></span>
+      <span id="power-label"></span>
+      <div class="bar"><div id="power-bar"></div></div>
+    </div>
+  </div>
+
+  <div id="hint" class="hidden">Tippen = vorwärts · Wischen = lenken</div>
+
+  <div id="menu" class="screen">
+    <div class="title"><span>SCHATZ</span><span>HÜPFER</span></div>
+    <div class="subtitle">Hüpf so weit du kannst, mein Schatz!</div>
+    <div class="spacer"></div>
+    <div class="tap">Tippen zum Starten</div>
+    <div class="menu-stats">
+      <div>🏆 Rekord <b id="menu-best">0</b></div>
+      <div>🐟 <b id="menu-fish">0</b></div>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn ui" id="btn-shop">🧍 Figuren<span class="dot hidden" id="shop-dot"></span></button>
+      <button class="btn ui" id="btn-daily">📅 Tages-Challenge<small id="daily-info"></small></button>
+      <button class="btn ui square" id="btn-sound" aria-label="Ton an/aus">🔊</button>
+    </div>
+  </div>
+
+  <div id="over" class="screen block ui hidden">
+    <div class="panel">
+      <div id="over-record" class="record hidden">🏆 NEUER REKORD!</div>
+      <div id="over-title">Platsch!</div>
+      <div id="over-sub"></div>
+      <div class="over-score"><span id="over-score">0</span><small>Punkte</small></div>
+      <div class="over-row">
+        <div><small>Rekord</small><b id="over-best">0</b></div>
+        <div><small>🐟 gesammelt</small><b id="over-fish">+0</b></div>
+      </div>
+      <div id="over-daily" class="daily-line hidden"></div>
+      <button class="btn big" id="btn-again">▶ Nochmal</button>
+      <div class="row">
+        <button class="btn" id="btn-menu">Menü</button>
+        <button class="btn" id="btn-shop2">🧍 Figuren<span class="dot hidden" id="over-shop-dot"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen block ui hidden">
+    <div class="panel">
+      <div class="panel-title">Pause</div>
+      <button class="btn big" id="btn-resume">▶ Weiter</button>
+      <button class="btn" id="btn-quit">Zum Menü</button>
+    </div>
+  </div>
+
+  <div id="shop" class="screen block ui hidden">
+    <div class="panel shop">
+      <div class="shop-head">
+        <div class="panel-title">Figuren</div>
+        <div class="pill dark">🐟 <span id="shop-fish">0</span></div>
+        <button class="icon-btn dark" id="shop-close" aria-label="Schließen">✕</button>
+      </div>
+      <div id="shop-grid"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
