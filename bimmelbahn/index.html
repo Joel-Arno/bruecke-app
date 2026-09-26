@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#7cb342">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Bimmelbahn">
+  <meta name="description" content="Fahrgäste einsammeln, zum richtigen Bahnhof bringen und bloß nicht in den eigenen Zug fahren.">
+  <title>Bimmelbahn</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="floaters"></div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-left">
+      <div id="score">0</div>
+      <div id="best">Rekord 0</div>
+    </div>
+    <div id="hearts" aria-label="Geduld der Fahrgäste">♥♥♥</div>
+    <div class="hud-right">
+      <span class="chip">🎫 <b id="tickets">0</b></span>
+      <button id="btn-pause" class="round ui" aria-label="Pause">❚❚</button>
+    </div>
+  </div>
+
+  <div id="start" class="screen">
+    <div class="title">Bimmel<span>bahn</span></div>
+    <p class="lead">Sammle Fahrgäste ein und bring sie zum Bahnhof in ihrer Farbe.<br>Nicht in den eigenen Zug fahren!</p>
+    <div class="grow"></div>
+    <div class="how">
+      <div><b>Wischen</b> lenkt in die Richtung</div>
+      <div><b>Links / rechts tippen</b> biegt ab</div>
+    </div>
+    <div class="go-hint">Wischen oder tippen zum Losfahren</div>
+    <div class="row ui">
+      <button id="btn-shop" class="btn">🚂 Lokschuppen<span class="dot hidden" id="shop-dot"></span></button>
+      <button id="sound" class="btn square" aria-label="Ton an/aus">🔊</button>
+    </div>
+  </div>
+
+  <div id="over" class="screen block ui hidden">
+    <div class="panel">
+      <div id="o-record" class="record hidden">Neuer Rekord!</div>
+      <div id="o-title">Entgleist!</div>
+      <div class="o-score"><span id="o-score">0</span><small>Punkte</small></div>
+      <div class="o-row">
+        <div><small>Rekord</small><b id="o-best">0</b></div>
+        <div><small>Fahrkarten</small><b id="o-tickets">+0</b></div>
+      </div>
+      <button id="btn-again" class="btn big">Nochmal</button>
+      <button id="btn-shop2" class="btn">🚂 Lokschuppen<span class="dot hidden" id="o-shop-dot"></span></button>
+    </div>
+  </div>
+
+  <div id="pause" class="screen block ui hidden">
+    <div class="panel">
+      <div class="p-title">Pause</div>
+      <button id="btn-resume" class="btn big">Weiterfahren</button>
+      <button id="btn-restart" class="btn">Neu starten</button>
+    </div>
+  </div>
+
+  <div id="shop" class="screen block ui hidden">
+    <div class="panel shop">
+      <div class="shop-head">
+        <div class="p-title">Lokschuppen</div>
+        <span class="chip dark">🎫 <b id="shop-tickets">0</b></span>
+        <button id="shop-close" class="round dark" aria-label="Schließen">✕</button>
+      </div>
+      <p class="shop-note">Jeder abgelieferte Fahrgast bringt eine Fahrkarte.</p>
+      <div id="shop-grid"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
