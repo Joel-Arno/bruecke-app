@@ -1,6 +1,6 @@
 // Service Worker: hält das Spiel für den Offline-Betrieb im Cache.
 // Die Seite selbst wird zuerst aus dem Netz geholt (für Updates), sonst aus dem Cache.
-const CACHE = 'kerker-licht-v2';
+const CACHE = 'kerker-licht-v3';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png'];
 
 self.addEventListener('install', e => {

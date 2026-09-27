@@ -260,7 +260,7 @@ h3.sec{ margin:6px 0 0; font-family:var(--f-num); font-size:11px; font-weight:50
 .card.t-hero{ z-index:2; cursor:default; }
 .card.teleport{ transition:translate 0s; }
 
-.card, .mcard, .codex-tile, .offer, .shop-item{ --card-bg:var(--surface); --val:var(--ink); --ic1:var(--b); --ic2:var(--b-deep); --cn:var(--ink-soft); }
+.card, .mcard, .codex-tile, .offer, .shop-item, .nq, .cardinfo, .tipnote{ --card-bg:var(--surface); --val:var(--ink); --ic1:var(--b); --ic2:var(--b-deep); --cn:var(--ink-soft); }
 .t-hero{ --card-bg:var(--a); --val:var(--on-a); --ic1:var(--gold); --ic2:var(--on-a); --cn:rgba(245,240,230,.75); }
 .t-hero .ic .dk{ fill:var(--a-deep); }
 .t-boss .cn{ text-transform:none; letter-spacing:0; font-size:12px; }
@@ -788,3 +788,251 @@ h3.sec{ margin:6px 0 0; font-family:var(--f-num); font-size:11px; font-weight:50
 .ic.r-titan{ --ic1:var(--b); --ic2:var(--b-deep); }
 .tb-mode{ position:relative; }
 .tipnote.t-monster, .tipnote.t-bomb, .tipnote.t-trap{ --ic2:var(--b-deep); }
+
+/* =====================================================================
+   KERKER 2: Grundfarben der Icons nach Name
+   (Regeln mit Karten- oder Monsterkontext weiter unten gewinnen)
+   ===================================================================== */
+.ic:is(.i-scroll, .i-scroll_fire, .i-scroll_tp){ --ic1:var(--wood-lt); --ic2:var(--bone); }
+.ic.i-frost{ --ic1:var(--ice); }
+.ic.i-smoke{ --ic1:var(--bomb); --ic2:var(--stone); }
+.ic.i-elixir{ --ic1:var(--b); --ic2:var(--glass); }
+.ic.i-antidote{ --ic1:var(--good); --ic2:var(--glass); }
+.ic.i-potion{ --ic1:var(--good); --ic2:var(--glass); }
+.ic.i-bomb{ --ic1:var(--bomb); --ic2:var(--wood); }
+.ic:is(.i-sword, .i-dagger, .i-axe, .i-hammer, .i-bow){ --ic1:var(--wood); --ic2:var(--steel); }
+.ic.i-campfire{ --ic1:var(--b); }
+.ic.i-quest{ --ic1:var(--a); }
+.ic.i-star{ --ic1:var(--gold-deep); }
+.ic.i-sigil{ --ic1:var(--violet); --ic2:var(--violet-lt); }
+.ic.i-bag{ --ic1:var(--wood-lt); --ic2:var(--wood); }
+.ic.i-key{ --ic1:var(--gold-deep); }
+.ic.i-stairs{ --ic1:var(--stone-deep); }
+.ic:is(.i-lockchest, .i-chest){ --ic1:var(--wood); --ic2:var(--wood-lt); }
+.ic.i-coin{ --ic1:var(--gold); --ic2:var(--gold-deep); }
+.ic.i-armor{ --ic1:var(--steel); --ic2:var(--glass); }
+.ic.i-merchant{ --ic1:var(--wood-lt); --ic2:var(--wood); }
+.ic.i-shrine{ --ic1:var(--b); --ic2:var(--stone); }
+.ic.i-heart{ --ic1:var(--b); }
+.ic.i-drop{ --ic1:var(--poison); }
+.ic.i-clock{ --ic1:var(--steel-deep); --ic2:var(--glass); }
+.ic.i-egg{ --ic1:var(--bone); --ic2:var(--poison); }
+.ic.i-bolt{ --ic1:var(--gold-deep); }
+.ic.i-flame{ --ic1:var(--fire); }
+.ic.i-lock{ --ic1:var(--ink-soft); }
+:root{ --ice:#8CC7DE; --violet:#5B4A7A; --violet-lt:#8F7BB5; --stone-deep:#A89E88; --olive:#7F8F4E; --olive-deep:#5E6B35; --golem:#9A9282; --golem-deep:#6E675A; }
+:root[data-style="papier"]{ --ice:#2F5DA8; --violet:#6A4C9C; --violet-lt:#9C84C4; --stone-deep:#8C8475; --olive:#5E8A2A; --olive-deep:#3E6A1A; --golem:#8C8475; --golem-deep:#5C564A; }
+
+/* Neue Monster */
+.k-kobold, .k-archer{ --ic1:var(--olive); --ic2:var(--olive-deep); }
+.k-wisp{ --ic1:var(--fire); --ic2:var(--gold); }
+.k-necro{ --ic1:var(--violet); --ic2:var(--violet-lt); }
+.k-shaman{ --ic1:var(--wood-lt); --ic2:var(--b); }
+.k-golem{ --ic1:var(--golem); --ic2:var(--golem-deep); }
+.t-hero .badge .ic, .t-hero .badge.b-wpn .ic{ --ic1:var(--wood-lt); --ic2:var(--steel); }
+.hi-star{ --ic1:var(--gold-deep); }
+.hi-sigil{ --ic1:var(--violet); --ic2:var(--violet-lt); }
+
+/* =====================================================================
+   KERKER 2: Weltfarben
+   ===================================================================== */
+.kerker, .kmap{ background:linear-gradient(180deg, var(--wt, var(--bg)) 0%, var(--bg) 60%); }
+:is(.kerker, .kmap)[data-world="1"]{ --wt:#E1D9C4; }
+:is(.kerker, .kmap)[data-world="2"]{ --wt:#D9E0CB; }
+:is(.kerker, .kmap)[data-world="3"]{ --wt:#EDE7DC; }
+:is(.kerker, .kmap)[data-world="4"]{ --wt:#DAD4E0; }
+:is(.kerker, .kmap)[data-world="5"]{ --wt:#EFD6BF; }
+:is(.kerker, .kmap)[data-world="6"]{ --wt:#CFCAC6; }
+:root[data-style="papier"] :is(.kerker, .kmap){ background:transparent; }
+
+/* =====================================================================
+   KERKER 2: Spielfeld
+   ===================================================================== */
+.kerker{ gap:8px; }
+.hud{ grid-template-columns:1.5fr 1fr 1fr 1fr; }
+.bar.xp i{ background:var(--gold-deep); }
+.badges{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; min-width:0; }
+.badge.b-tr{ padding:2px 3px; background:rgba(32,28,22,.1); }
+.badge.b-tr .ic, .badge.b-cd .ic{ width:14px; height:14px; }
+.t-hero .badge.b-wpn{ background:rgba(245,240,230,.16); }
+.ci .top{ gap:2px; }
+
+.goalrow{ display:flex; gap:8px; align-items:stretch; }
+.goal{
+  position:relative; flex:1; min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-rows:auto auto;
+  column-gap:9px; row-gap:5px; align-items:center; padding:7px 11px 8px 8px; border-radius:12px; background:var(--surface);
+}
+.goal .g-ic{ grid-row:1 / span 2; width:30px; height:30px; display:grid; place-items:center; --ic1:var(--b); --ic2:var(--b-deep); }
+.goal .g-ic .ic{ width:28px; height:28px; }
+.goal .g-txt{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; min-width:0; }
+.goal .g-txt b{ font-size:13px; font-weight:600; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.goal .g-txt small{ flex:none; font-family:var(--f-num); font-size:12px; font-weight:600; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+.goal .g-bar{ display:block; height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; }
+.goal .g-bar i{ display:block; height:100%; background:var(--a); border-radius:inherit; transition:width .3s; }
+.goal.boss .g-ic{ --ic1:var(--a-deep); --ic2:var(--gold); }
+.goal.boss .g-bar i{ background:var(--b); }
+.goal.p2 .g-bar i{ background:var(--fire); animation:blink .8s steps(2) infinite; }
+.goal.done{ background:var(--gold); }
+.goal.done .g-bar{ background:rgba(32,28,22,.12); }
+.goal.done .g-bar i{ background:var(--good); }
+.goal.done .g-ic{ --ic1:var(--stone-deep); }
+.nextq{ position:relative; flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 8px 7px; border-radius:12px; background:var(--surface); }
+.nq-lbl{ font-family:var(--f-num); font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-soft); white-space:nowrap; }
+.nq-cards{ display:flex; gap:5px; }
+.nq{ position:relative; width:30px; height:34px; border:0; padding:0; border-radius:7px; background:var(--card-bg); display:grid; place-items:center; box-shadow:0 2px 0 var(--shadow); }
+.nq .ic{ width:22px; height:22px; }
+.nq b{ position:absolute; top:-6px; right:-7px; min-width:16px; height:16px; padding:0 4px; border-radius:8px; background:var(--ink); color:var(--bg); font-family:var(--f-num); font-size:10px; line-height:16px; font-weight:600; }
+.nq b:empty{ display:none; }
+.nq.t-stairs{ animation:glow 1.6s ease-in-out infinite; }
+
+.kbar{ display:flex; gap:7px; align-items:stretch; }
+.ability{ flex:1 1 0; }
+.items{ flex:none; display:flex; gap:5px; align-items:center; }
+.slot{ position:relative; width:38px; height:46px; border-radius:10px; border:0; padding:0; background:var(--surface); display:grid; place-items:center; box-shadow:0 3px 0 var(--shadow); }
+.slot .ic{ width:28px; height:28px; }
+.slot.empty{ background:transparent; box-shadow:inset 0 0 0 1.5px var(--line); }
+.slot.active{ background:var(--gold); box-shadow:0 0 0 2px var(--b); animation:tgtpulse 1s ease-in-out infinite; }
+.items[data-n="4"] .slot{ width:34px; }
+.items[data-n="5"] .slot, .items[data-n="6"] .slot, .items[data-n="7"] .slot{ width:30px; }
+.items[data-n="5"] .slot .ic, .items[data-n="6"] .slot .ic, .items[data-n="7"] .slot .ic{ width:24px; height:24px; }
+.relic-btn{ position:relative; flex:none; width:46px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:0; border-radius:12px; padding:4px; background:var(--surface); box-shadow:0 3px 0 var(--shadow); }
+.relic-btn .ic{ width:24px; height:24px; }
+.relic-btn b{ font-family:var(--f-num); font-size:12px; line-height:1; font-weight:600; }
+.relic-btn small{ position:absolute; top:-7px; right:-6px; background:var(--b); color:#FFF8EE; border-radius:8px; font-family:var(--f-num); font-size:10px; font-weight:600; padding:1px 5px; }
+.ab-text small{ font-variant-numeric:tabular-nums; }
+.log{ min-height:2.8em; max-height:2.8em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:13.5px; line-height:1.4; }
+
+.t-stairs{ --card-bg:#F5E1A4; --val:var(--gold-ink); }
+.t-stairs .ci{ animation:glow 1.6s ease-in-out infinite; }
+@keyframes glow{ 50%{ box-shadow:0 0 0 5px rgba(242,193,78,.55), 0 4px 0 var(--shadow); } }
+.t-key{ --card-bg:#F6E8C0; }
+.t-lockchest{ --card-bg:#EFE0BD; }
+.t-item{ --card-bg:#ECE4D2; }
+.card.leader .ci{ box-shadow:inset 0 0 0 3px var(--b), 0 4px 0 var(--shadow); }
+.card.stunned .ci .ic{ opacity:.5; filter:grayscale(.6); }
+.card.frozen .ci::after{ content:''; position:absolute; inset:0; border-radius:inherit; background:linear-gradient(135deg, rgba(159,216,240,.42), rgba(255,255,255,.12)); pointer-events:none; }
+.card.shootable .ci{ box-shadow:inset 0 0 0 2.5px var(--a), 0 4px 0 var(--shadow); }
+.card.shootable .ci::after{ content:''; position:absolute; left:50%; top:6px; margin-left:-8px; width:16px; height:16px; border-radius:50%; background:var(--a) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='4.5' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.4' fill='%23fff'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.t-boss.p2 .ci{ animation:enrage 1.2s ease-in-out infinite; }
+@keyframes enrage{ 50%{ box-shadow:0 0 0 5px rgba(224,88,58,.5), 0 4px 0 var(--shadow); } }
+.ci.lunge{ animation:lunge .3s ease-out; }
+@keyframes lunge{ 45%{ transform:translate(var(--lx, 0), var(--ly, 0)) scale(1.05); } }
+
+.cardinfo{
+  position:absolute; left:16px; right:16px; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 66px); z-index:8;
+  display:flex; gap:12px; align-items:flex-start; padding:12px 14px; border-radius:14px; background:var(--surface);
+  box-shadow:0 12px 30px rgba(0,0,0,.2), 0 0 0 1.5px var(--line); animation:up .2s; max-height:46%; overflow:auto;
+}
+.cardinfo > .ic{ width:42px; height:42px; flex:none; }
+.cardinfo b{ font-size:15px; font-weight:600; }
+.cardinfo p{ margin:4px 0 0; font-size:13px; color:var(--ink-soft); line-height:1.35; }
+.cardinfo p b{ color:var(--ink); font-size:inherit; }
+
+.lvlhead{ display:flex; align-items:center; gap:12px; }
+.lvlhead > .ic{ width:54px; height:54px; flex:none; }
+.lvlhead h2{ margin-top:4px; }
+.offer:disabled{ opacity:.42; cursor:default; }
+.offer:disabled:active{ translate:none; }
+.offer small{ font-family:var(--f-num); font-size:11px; color:var(--b); margin-left:4px; font-weight:600; }
+
+/* =====================================================================
+   KERKER 2: Karte
+   ===================================================================== */
+.kmap{ gap:10px; }
+.map-hud{ display:flex; gap:6px; flex-wrap:wrap; }
+.mh{ position:relative; display:inline-flex; align-items:center; gap:4px; padding:5px 10px 5px 6px; border-radius:999px; background:var(--surface); font-family:var(--f-num); font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
+.mh .ic{ width:18px; height:18px; }
+.map-scroll{ position:relative; flex:1; min-height:0; overflow-y:auto; margin:0 -16px; padding:0 16px; overscroll-behavior:contain; }
+.map{ position:relative; width:100%; max-width:420px; margin:0 auto; }
+.map-lines{ position:absolute; left:0; top:0; overflow:visible; pointer-events:none; }
+.map-lines line{ stroke:var(--line-strong); stroke-width:2.5; stroke-dasharray:2 8; stroke-linecap:round; opacity:.5; }
+.map-lines line.open{ stroke:var(--b); opacity:1; stroke-width:3; stroke-dasharray:4 7; animation:dash 1s linear infinite; }
+.map-lines line.taken{ stroke:var(--b); opacity:.85; stroke-width:3; stroke-dasharray:none; }
+@keyframes dash{ to{ stroke-dashoffset:-22; } }
+.mnode{ position:absolute; translate:-50% -50%; display:flex; flex-direction:column; align-items:center; gap:3px; border:0; background:transparent; padding:0; width:76px; cursor:default; }
+.mnode .mn-ic{ position:relative; width:50px; height:50px; border-radius:50%; background:var(--surface); display:grid; place-items:center; box-shadow:0 3px 0 var(--shadow), inset 0 0 0 2px var(--line); transition:transform .2s; }
+.mnode .mn-ic .ic{ width:30px; height:30px; }
+.mnode .mn-lbl{ font-family:var(--f-num); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); white-space:nowrap; }
+.mnode.locked{ opacity:.5; }
+.mnode.done .mn-ic{ background:var(--surface-2); }
+.mnode.done .mn-ic .ic{ opacity:.5; }
+.mnode.done .mn-ic::after{ content:''; position:absolute; right:-3px; bottom:-3px; width:18px; height:18px; border-radius:50%; background:var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.6 2.6L12 5.5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat; }
+.mnode.reach{ cursor:pointer; }
+.mnode.reach .mn-ic{ box-shadow:0 3px 0 var(--shadow), inset 0 0 0 3px var(--b); animation:reach 1.3s ease-in-out infinite; }
+.mnode.reach .mn-lbl{ color:var(--ink); font-weight:600; }
+@keyframes reach{ 50%{ transform:scale(1.12); } }
+.mnode.here .mn-ic{ box-shadow:0 0 0 4px var(--gold), 0 3px 0 var(--shadow); }
+.mnode.n-kampf{ --ic1:var(--wood); --ic2:var(--steel); }
+.mnode.n-elite{ --ic1:var(--b); --ic2:var(--b-deep); }
+.mnode.n-elite .mn-ic{ background:#F3DCCB; }
+.mnode.n-rast .mn-ic{ background:#F5E3C2; }
+.mnode.n-boss{ width:96px; --ic1:var(--a-deep); --ic2:var(--gold); }
+.mnode.n-boss .mn-ic{ width:68px; height:68px; background:var(--b); }
+.mnode.n-boss .mn-ic .ic{ width:44px; height:44px; }
+
+/* =====================================================================
+   KERKER 2: Menü
+   ===================================================================== */
+.heroes{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+.mode-wrap{ display:flex; flex-direction:column; }
+.mode-wrap:has(.asc) .mode{ border-bottom-left-radius:0; border-bottom-right-radius:0; }
+.asc{ display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--a-deep); color:var(--on-a); border-radius:0 0 16px 16px; position:relative; }
+.asc .icon-btn{ background:rgba(245,240,230,.14); color:var(--on-a); font-size:22px; font-weight:600; line-height:1; }
+.asc .icon-btn:disabled{ opacity:.3; }
+.asc-txt{ flex:1; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.asc-txt b{ font-family:var(--f-display); font-size:17px; line-height:1.1; }
+.asc-txt span{ font-size:12px; opacity:.82; line-height:1.3; }
+
+/* =====================================================================
+   KERKER 2: Papier-Stil
+   ===================================================================== */
+:root[data-style="papier"] :is(.goal, .nextq, .slot:not(.empty), .relic-btn, .cardinfo, .mh, .asc)::before{
+  content:''; position:absolute; inset:1px; pointer-events:none;
+  border:1.5px solid var(--sk, var(--ink)); border-radius:9px 4px 10px 5px; filter:url(#rough);
+}
+:root[data-style="papier"] :is(.goal, .nextq, .slot, .relic-btn, .mh){ background:transparent; box-shadow:none; }
+:root[data-style="papier"] .slot.empty{ box-shadow:none; border:1.5px dashed var(--line-strong); opacity:.4; }
+:root[data-style="papier"] .slot.active{ background:rgba(244,217,58,.6); }
+:root[data-style="papier"] .goal .g-txt b{ font-size:17px; font-weight:400; }
+:root[data-style="papier"] .goal .g-txt small{ font-family:var(--f-body); font-size:16px; font-weight:400; }
+:root[data-style="papier"] .goal .g-bar{ background:transparent; box-shadow:inset 0 0 0 1px var(--ink); height:7px; border-radius:1px; }
+:root[data-style="papier"] .goal .g-bar i{ background:repeating-linear-gradient(-45deg, var(--a) 0 2px, transparent 2px 4px); }
+:root[data-style="papier"] .goal.boss .g-bar i{ background:repeating-linear-gradient(-45deg, var(--b) 0 2px, transparent 2px 4px); }
+:root[data-style="papier"] .goal.done{ background:linear-gradient(transparent 8%, rgba(244,217,58,.6) 8%, rgba(244,217,58,.6) 92%, transparent 92%); }
+:root[data-style="papier"] .nq-lbl{ font-family:var(--f-body); font-size:13px; letter-spacing:0; text-transform:none; }
+:root[data-style="papier"] .nq{ background:var(--surface); box-shadow:inset 0 0 0 1.5px var(--ink); border-radius:4px; }
+:root[data-style="papier"] .nq b{ font-family:var(--f-body); font-size:13px; font-weight:400; }
+:root[data-style="papier"] .relic-btn b, :root[data-style="papier"] .mh{ font-family:var(--f-body); font-weight:400; font-size:17px; }
+:root[data-style="papier"] .relic-btn small{ font-family:var(--f-body); font-size:13px; font-weight:400; }
+:root[data-style="papier"] .log{ font-size:17px; }
+:root[data-style="papier"] .cardinfo{ background:var(--surface); box-shadow:0 10px 24px rgba(0,0,0,.12); rotate:-.4deg; }
+:root[data-style="papier"] .cardinfo b{ font-family:var(--f-hand); font-size:26px; font-weight:700; line-height:1; }
+:root[data-style="papier"] .cardinfo p{ font-size:16px; }
+:root[data-style="papier"] .cardinfo p b{ font-family:var(--f-body); font-size:inherit; font-weight:400; }
+:root[data-style="papier"] .t-stairs .ci{ background:#FFF6D0; }
+:root[data-style="papier"] :is(.t-key, .t-lockchest, .t-item) .ci{ background:#FFFBEA; }
+:root[data-style="papier"] .card.leader .ci{ box-shadow:none; }
+:root[data-style="papier"] .card.leader .ci::before{ border-color:var(--b); border-width:3px; }
+:root[data-style="papier"] .card.shootable .ci{ box-shadow:none; }
+:root[data-style="papier"] .card.shootable .ci::before{ border-color:var(--a); border-style:dashed; }
+:root[data-style="papier"] .badge.b-tr{ background:transparent; }
+:root[data-style="papier"] .map-lines line{ stroke:var(--ink); }
+:root[data-style="papier"] .map-lines line.taken, :root[data-style="papier"] .map-lines line.open{ stroke:var(--b); }
+:root[data-style="papier"] .mnode .mn-ic{ background:var(--surface); box-shadow:none; }
+:root[data-style="papier"] .mnode .mn-ic::before{ content:''; position:absolute; inset:0; border:2px solid var(--ink); border-radius:50%; filter:url(#rough); }
+:root[data-style="papier"] .mnode.reach .mn-ic::before{ border-color:var(--b); border-width:3px; }
+:root[data-style="papier"] .mnode.here .mn-ic{ box-shadow:0 0 0 4px rgba(244,217,58,.8); }
+:root[data-style="papier"] .mnode.n-boss .mn-ic{ background:#FDF0EE; --ic1:var(--b); --ic2:var(--b); }
+:root[data-style="papier"] .mnode.n-elite .mn-ic, :root[data-style="papier"] .mnode.n-rast .mn-ic{ background:#FFFBEA; }
+:root[data-style="papier"] .mnode .mn-lbl{ font-family:var(--f-body); font-size:14px; letter-spacing:0; text-transform:none; }
+:root[data-style="papier"] .asc{ background:transparent; color:var(--ink); }
+:root[data-style="papier"] .asc .icon-btn{ background:transparent; color:var(--ink); }
+:root[data-style="papier"] .asc-txt b{ font-size:26px; color:var(--b); }
+:root[data-style="papier"] .asc-txt span{ font-size:15px; opacity:1; color:var(--ink-soft); }
+:root[data-style="papier"] .mode-wrap:has(.asc) .mode{ border-radius:4px; }
+@media (max-height:700px){
+  .kerker{ gap:6px; }
+  .log{ -webkit-line-clamp:1; min-height:1.4em; max-height:1.4em; }
+  .hud-box{ padding:5px 8px 6px; }
+  .hud .val{ font-size:15px; }
+}

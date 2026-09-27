@@ -24,7 +24,7 @@ FONTS = [
     ("Caveat", "caveat.woff2", "600 700"),
     ("Patrick Hand", "patrickhand.woff2", "400"),
 ]
-JS = ["core.js", "kerker.js", "licht.js", "main.js"]
+JS = ["core.js", "kerker-data.js", "kerker-engine.js", "kerker-ui.js", "licht.js", "main.js"]
 
 
 def font_css():

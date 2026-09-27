@@ -49,9 +49,9 @@
       <article class="game-card feature">
         <div class="gc-art"><div class="mini-board" id="miniBoard"></div></div>
         <div class="gc-body">
-          <p class="gc-tag">Roguelike · 4 Helden · 5 Bosse</p>
+          <p class="gc-tag">Roguelike · 6 Helden · 6 Welten</p>
           <h2>Kerker-Wischer</h2>
-          <p class="desc">Wische dich über neun Felder durch fünf Etagen. Sammle Relikte, weiche Bomben aus und stell dich dem Drachen.</p>
+          <p class="desc">Wähle deinen Weg durch fünf Welten voller Räume. Plane jeden Zug, sammle Relikte und Talente und stell dich dem Drachen. Und dahinter?</p>
           <p class="gc-stats" id="kHubStats"></p>
           <div class="gc-actions">
             <button type="button" class="btn" id="goKerker">Spielen</button>
@@ -113,13 +113,28 @@
     </div>
   </section>
 
+  <!-- ===================== KERKER: KARTE ===================== -->
+  <section class="screen kmap" id="kmap" hidden>
+    <div class="topbar">
+      <button type="button" class="icon-btn" id="kmapPause" aria-label="Menü">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg>
+      </button>
+      <div class="tb-title"><span id="kmapTitle">Welt 1</span><small id="kmapSub">Wähle deinen Weg</small></div>
+      <div class="tb-mode" id="kmapMode">Abenteuer</div>
+    </div>
+    <div class="map-hud" id="kmapHud"></div>
+    <div class="map-scroll" id="kmapScroll"><div class="map" id="kmapInner"></div></div>
+    <canvas class="fx-canvas" id="kmapFx" aria-hidden="true"></canvas>
+    <div class="banner" id="kmapBanner" hidden></div>
+  </section>
+
   <!-- ===================== KERKER: SPIEL ===================== -->
   <section class="screen kerker" id="kerker" hidden>
     <div class="topbar">
       <button type="button" class="icon-btn" id="kPause" aria-label="Pause">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg>
       </button>
-      <div class="tb-title"><span id="kFloorName">Modergewölbe</span><small id="kSub">Etage 1</small></div>
+      <div class="tb-title"><span id="kRoomName">Kampf</span><small id="kSub">Welt 1</small></div>
       <div class="tb-mode" id="kModeTag">Abenteuer</div>
     </div>
 
@@ -129,18 +144,24 @@
         <span class="val"><span class="hi-heart" data-icon="heart"></span><b id="kHp">10/10</b></span>
         <span class="bar"><i id="kHpBar"></i></span>
       </div>
-      <div class="hud-box">
-        <span class="lbl">Waffe</span>
-        <span class="val"><span class="hi-sword" data-icon="sword"></span><b id="kWpn">–</b></span>
+      <div class="hud-box" id="kWpnBox">
+        <span class="lbl" id="kWpnLbl">Waffe</span>
+        <span class="val"><span class="hi-sword" id="kWpnIc"></span><b id="kWpn">–</b></span>
       </div>
       <div class="hud-box" id="kGoldBox">
         <span class="lbl">Gold</span>
         <span class="val"><span class="hi-coin" data-icon="coin"></span><b id="kGold">0</b></span>
       </div>
-      <div class="hud-box">
-        <span class="lbl" id="kLvlLbl">Etage</span>
-        <span class="val"><b id="kLvl">1/5</b></span>
+      <div class="hud-box" id="kLvlBox">
+        <span class="lbl">Stufe</span>
+        <span class="val"><span class="hi-star" data-icon="star"></span><b id="kLvl">1</b></span>
+        <span class="bar xp"><i id="kXpBar"></i></span>
       </div>
+    </div>
+
+    <div class="goalrow">
+      <div class="goal" id="kGoal"></div>
+      <div class="nextq" id="kNext" aria-label="Als Nächstes"></div>
     </div>
 
     <div class="board-wrap" id="kBoardWrap">
@@ -149,11 +170,13 @@
 
     <div class="kbar">
       <button type="button" class="ability" id="kAbility"></button>
-      <button type="button" class="relic-strip" id="kRelics" aria-label="Relikte ansehen"></button>
+      <div class="items" id="kItems" aria-label="Tasche"></div>
+      <button type="button" class="relic-btn" id="kRelics" aria-label="Relikte ansehen"></button>
     </div>
     <p class="log" id="kLog" aria-live="polite"></p>
 
     <button type="button" class="tipnote" id="kTip" hidden></button>
+    <div class="cardinfo" id="kInfo" hidden></div>
     <div class="banner" id="kBanner" hidden></div>
     <canvas class="fx-canvas" id="kFx" aria-hidden="true"></canvas>
   </section>

@@ -2,7 +2,7 @@
 
 Zwei Offline-Handyspiele in einer einzigen HTML-Datei (`index.html`), ohne Internet, ohne Werbung.
 
-- **Kerker-Wischer**: Roguelike auf neun Feldern. 4 Helden mit Spezialfähigkeiten, 5 Etagen mit eigenen Bossen, 15 Relikte, Bomben, Mimics, Händler, Endlos-Modus und eine tägliche Tagesgruft.
+- **Kerker-Wischer**: Roguelike auf neun Feldern. 6 Helden mit eigenen Fähigkeiten, 5 Welten plus eine geheime sechste, jede mit einer Karte aus Kämpfen, Elite-Gegnern, Schatzkammern, Händlern, Ereignissen und Rastplätzen. Raumziele, Vorschau auf die nächsten Karten, 14 Monsterarten mit Eigenschaften, 5 Waffenarten, Gegenstände, Stufen mit Talenten, 30 Relikte, 6 Bosse mit zweiter Phase, 10 Aufstiegsstufen, Endlose Gruft und Tagesgruft.
 - **Lichtläufer**: Arcade für einen Finger. Zonen mit Lasern, Rotoren und Minen, Power-ups, Überladung, Missionen mit Rängen und Skins.
 
 Beide Spiele gibt es in zwei Grafikstilen (Warm & flach, Papier). Soundeffekte und Musik werden im Browser erzeugt, Spielstände bleiben auf dem Gerät.

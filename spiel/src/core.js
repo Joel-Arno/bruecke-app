@@ -40,12 +40,12 @@ function freshSave(){
   return {
     v: 2, style: 'warm', sound: true, music: true, vibe: true,
     tips: {}, ach: {},
-    stats: { kRuns: 0, kWins: 0, kKills: 0, kBosses: 0, kGold: 0, kBestStreak: 0, kRelics: 0, kSteps: 0,
+    stats: { kRuns: 0, kWins: 0, kKills: 0, kBosses: 0, kGold: 0, kBestStreak: 0, kRelics: 0, kSteps: 0, kRooms: 0, kElites: 0,
              lRuns: 0, lDist: 0, lSparks: 0, lFevers: 0, lPowers: 0, lBestMult: 1 },
     kerker: {
-      bank: 0, best: 0, bestDepth: 0, bestFloor: 0,
-      up: { hp: 0, armor: 0, wpn: 0, luck: 0, charge: 0, relic: 0 },
-      heroes: { ritter: true, schurkin: false, magierin: false, berserker: false },
+      bank: 0, best: 0, bestDepth: 0, bestFloor: 0, bestWorld: 0, ascMax: 0, rangedKills: 0, itemsUsed: 0,
+      up: { hp: 0, armor: 0, wpn: 0, luck: 0, charge: 0, relic: 0, taschen: 0, vorrat: 0 },
+      heroes: { ritter: true, schurkin: false, magierin: false, berserker: false, jaegerin: false, alchemist: false },
       hero: 'ritter', winsBy: {}, codex: {},
       daily: { key: '', best: 0, runs: 0, streak: 0, last: '' },
       run: null
@@ -70,7 +70,17 @@ function loadSave(){
   const d = freshSave();
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) return merge(d, JSON.parse(raw));
+    if (raw){
+      const m = merge(d, JSON.parse(raw));
+      // Umstieg auf Kerker 2: Wer schon gewonnen hat, darf direkt Aufstieg 1 spielen
+      if (!m.kerker.v2){
+        m.kerker.v2 = 1;
+        if (m.stats.kWins > 0) m.kerker.ascMax = Math.max(m.kerker.ascMax || 0, 1);
+        m.kerker.bestWorld = Math.max(m.kerker.bestWorld || 0, Math.min(5, m.kerker.bestFloor || 0));
+        if (m.kerker.run && m.kerker.run.v !== 2){ m.kerker.bank += m.kerker.run.gold || 0; m.kerker.run = null; }
+      }
+      return m;
+    }
     const old = localStorage.getItem(OLD_SAVE_KEY);
     if (old){
       // Fortschritt aus den ersten Entwürfen übernehmen
@@ -354,7 +364,7 @@ const ICON = {
   r_feilscher:'<path class="ln" d="M24 7v31M9 13h30M9 13l-6 12M9 13l6 12M39 13l-6 12M39 13l6 12"/><path class="f1" d="M2 25a7 7 0 0 0 14 0zM32 25a7 7 0 0 0 14 0z"/><rect class="f2" x="15" y="38" width="18" height="5" rx="1.5"/><circle class="gl" cx="24" cy="7" r="3"/>',
   r_titan:    '<path class="f1" d="M24 44C9 33.5 4 26 4 18.5 4 12 8.5 7.5 14.5 7.5c4.2 0 7.5 2.2 9.5 5.2 2-3 5.3-5.2 9.5-5.2C39.5 7.5 44 12 44 18.5 44 26 39 33.5 24 44z"/><path class="bd" d="M24 13v31L12 29zM24 13l12 16-12 15z" opacity=".35"/>' + P_CROWN.replace('d="M15.5 12.5l1.8-7 4 3.6L24 3.5l2.7 5.6 4-3.6 1.8 7z"', 'd="M17 11l1.4-6 3.4 3L24 3l2.2 5 3.4-3 1.4 6z"')
 };
-const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 48 48" aria-hidden="true">${ICON[n] || ICON.spark}</svg>`;
+const icon = (n, cls = '') => `<svg class="ic i-${n} ${cls}" viewBox="0 0 48 48" aria-hidden="true">${ICON[n] || ICON.spark}</svg>`;
 
 /* =====================================================================
    OBERFLÄCHE: Toasts, Sheets, Bildschirme
@@ -429,9 +439,11 @@ const UPS = {
   kerker: { cur: 'Gold', ic: 'coin', items: [
     { id: 'hp',     name: 'Zähe Haut',      desc: '+2 maximale Leben pro Stufe', costs: [30, 70, 140, 260] },
     { id: 'armor',  name: 'Kettenhemd',     desc: 'Jeder Lauf startet mit +2 Rüstung pro Stufe', costs: [25, 60, 120] },
-    { id: 'wpn',    name: 'Startwaffe',     desc: 'Du startest mit einem Dolch der Stärke 2, 3 oder 5', costs: [30, 75, 150] },
+    { id: 'wpn',    name: 'Waffenpflege',   desc: 'Die Startwaffe hat +1 Stärke pro Stufe. Helden ohne Waffe bekommen einen Dolch.', costs: [30, 75, 150] },
     { id: 'luck',   name: 'Glücksklee',     desc: 'Mehr Tränke und Truhen im Kerker', costs: [20, 50, 100] },
     { id: 'charge', name: 'Kampfgeist',     desc: 'Die Heldenfähigkeit startet mit +1 Ladung pro Stufe', costs: [40, 90, 180] },
+    { id: 'vorrat', name: 'Vorratskiste',   desc: 'Jeder Lauf beginnt mit einem Heiltrank in der Tasche', costs: [80] },
+    { id: 'taschen',name: 'Größerer Rucksack', desc: '+1 Taschenplatz in jedem Lauf', costs: [160] },
     { id: 'relic',  name: 'Reliquienjäger', desc: 'Jeder Lauf beginnt mit einer Relikt-Wahl', costs: [220] }
   ]},
   licht: { cur: 'Funken', ic: 'spark', items: [
@@ -473,21 +485,30 @@ function openShop(game, back){
 const ACH = [
   { id: 'k_first',   g: 'k', name: 'Erste Beute',        desc: 'Besiege dein erstes Monster.' },
   { id: 'k_boss',    g: 'k', name: 'Wächter gefallen',   desc: 'Besiege einen Boss.' },
-  { id: 'k_floor3',  g: 'k', name: 'Knochenbrecher',     desc: 'Erreiche Etage 3 im Abenteuer.' },
+  { id: 'k_floor3',  g: 'k', name: 'Knochenbrecher',     desc: 'Erreiche Welt 3 im Abenteuer.' },
   { id: 'k_win',     g: 'k', name: 'Drachentöter',       desc: 'Besiege den Uralten Drachen.' },
-  { id: 'k_deep',    g: 'k', name: 'Bodenlos',           desc: 'Erreiche Tiefe 100 im Endlos-Modus.' },
-  { id: 'k_deep2',   g: 'k', name: 'Abgrund',            desc: 'Erreiche Tiefe 200 im Endlos-Modus.' },
+  { id: 'k_deep',    g: 'k', name: 'Bodenlos',           desc: 'Schaffe 20 Räume in der Endlosen Gruft.' },
+  { id: 'k_deep2',   g: 'k', name: 'Abgrundtief',        desc: 'Schaffe 40 Räume in der Endlosen Gruft.' },
   { id: 'k_streak',  g: 'k', name: 'Blutrausch',         desc: 'Erreiche eine Serie von 5 Siegen in Folge.' },
   { id: 'k_crit',    g: 'k', name: 'Glückspilz',         desc: 'Lande 5 kritische Treffer in einem Lauf.' },
-  { id: 'k_rich',    g: 'k', name: 'Goldgräber',         desc: 'Sammle 200 Gold in einem Lauf.' },
-  { id: 'k_relics',  g: 'k', name: 'Reliquienjäger',     desc: 'Besitze 5 Relikte gleichzeitig.' },
+  { id: 'k_rich',    g: 'k', name: 'Goldgräber',         desc: 'Habe 300 Gold auf einmal.' },
+  { id: 'k_relics',  g: 'k', name: 'Reliquienjäger',     desc: 'Besitze 6 Relikte gleichzeitig.' },
   { id: 'k_bomb',    g: 'k', name: 'Sprengmeister',      desc: 'Besiege 2 Monster mit einer Explosion.' },
   { id: 'k_mimic',   g: 'k', name: 'Reingefallen',       desc: 'Lass dich von einem Mimic beißen.' },
   { id: 'k_phoenix', g: 'k', name: 'Wiedergeboren',      desc: 'Werde von der Phönixfeder gerettet.' },
-  { id: 'k_heroes',  g: 'k', name: 'Heldenrat',          desc: 'Schalte alle vier Helden frei.' },
+  { id: 'k_heroes',  g: 'k', name: 'Heldenrat',          desc: 'Schalte alle sechs Helden frei.' },
   { id: 'k_daily',   g: 'k', name: 'Tagwerk',            desc: 'Spiele eine Tagesgruft.' },
   { id: 'k_codex',   g: 'k', name: 'Forscher',           desc: 'Entdecke alle Monster im Kompendium.' },
-  { id: 'k_allwin',  g: 'k', name: 'Legende',            desc: 'Gewinne das Abenteuer mit allen vier Helden.' },
+  { id: 'k_allwin',  g: 'k', name: 'Legende',            desc: 'Gewinne das Abenteuer mit allen sechs Helden.' },
+  { id: 'k_level10', g: 'k', name: 'Veteranin des Kerkers', desc: 'Erreiche Stufe 10 in einem Lauf.' },
+  { id: 'k_elite',   g: 'k', name: 'Elitejäger',         desc: 'Besiege insgesamt 10 Elite-Gegner.' },
+  { id: 'k_nohit',   g: 'k', name: 'Unberührbar',        desc: 'Besiege einen Boss, ohne im Bosskampf Leben zu verlieren.' },
+  { id: 'k_items',   g: 'k', name: 'Taschenspieler',     desc: 'Benutze insgesamt 50 Gegenstände.' },
+  { id: 'k_sigil',   g: 'k', name: 'Siegelbrecher',      desc: 'Finde alle drei Siegelsplitter in einem Lauf.' },
+  { id: 'k_abyss',   g: 'k', name: 'Der wahre Grund',    desc: 'Besiege den Namenlosen im Abgrund.' },
+  { id: 'k_asc1',    g: 'k', name: 'Aufgestiegen',       desc: 'Gewinne auf Aufstieg 1 oder höher.' },
+  { id: 'k_asc5',    g: 'k', name: 'Gipfelstürmer',      desc: 'Gewinne auf Aufstieg 5 oder höher.' },
+  { id: 'k_asc10',   g: 'k', name: 'Unsterblich',        desc: 'Gewinne auf Aufstieg 10.' },
   { id: 'l_1k',      g: 'l', name: 'Erste Strecke',      desc: 'Erreiche 1.000 Punkte.' },
   { id: 'l_5k',      g: 'l', name: 'Lichtgeschwindigkeit', desc: 'Erreiche 5.000 Punkte.' },
   { id: 'l_20k',     g: 'l', name: 'Lichtjahr',          desc: 'Erreiche 20.000 Punkte.' },
@@ -531,12 +552,16 @@ function statsSheet(){
     <dl class="statlist">
       <dt>Läufe</dt><dd>${fmt(s.kRuns)}</dd>
       <dt>Siege im Abenteuer</dt><dd>${fmt(s.kWins)}</dd>
+      <dt>Höchster Aufstieg</dt><dd>${fmt(D.kerker.ascMax || 0)}</dd>
+      <dt>Räume geschafft</dt><dd>${fmt(s.kRooms || 0)}</dd>
       <dt>Monster besiegt</dt><dd>${fmt(s.kKills)}</dd>
+      <dt>Elite-Gegner besiegt</dt><dd>${fmt(s.kElites || 0)}</dd>
       <dt>Bosse besiegt</dt><dd>${fmt(s.kBosses)}</dd>
       <dt>Gold gesammelt</dt><dd>${fmt(s.kGold)}</dd>
       <dt>Relikte gefunden</dt><dd>${fmt(s.kRelics)}</dd>
       <dt>Längste Serie</dt><dd>${fmt(s.kBestStreak)}</dd>
-      <dt>Größte Tiefe (Endlos)</dt><dd>${fmt(D.kerker.bestDepth)}</dd>
+      <dt>Endlose Gruft (Räume)</dt><dd>${fmt(D.kerker.bestDepth || 0)}</dd>
+      <dt>Gegenstände benutzt</dt><dd>${fmt(D.kerker.itemsUsed || 0)}</dd>
     </dl>
     <h3>Lichtläufer</h3>
     <dl class="statlist">
@@ -595,11 +620,11 @@ function setStyle(s){
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; const b = $('#btnInstall'); if (b) b.hidden = false; });
 
-const MINI = [['gold', 3, 'coin'], ['monster', 2, 'slime'], ['potion', 4, 'potion'], ['weapon', 5, 'sword'], ['hero', 10, 'ritter'], ['bomb', 3, 'bomb'], ['chest', 0, 'chest'], ['monster', 8, 'skull'], ['armor', 3, 'armor']];
+const MINI = [['monster', 3, 'archer'], ['stairs', 0, 'stairs'], ['monster', 2, 'kobold'], ['weapon', 5, 'axe'], ['hero', 10, 'ritter'], ['bomb', 3, 'bomb'], ['item', 0, 'scroll_fire'], ['monster', 8, 'skull'], ['monster', 12, 'golem']];
 function refreshHub(){
-  $('#miniBoard').innerHTML = MINI.map(([t, , ic]) => `<div class="mcard t-${t}"><div class="ci">${icon(ic)}</div></div>`).join('');
+  $('#miniBoard').innerHTML = MINI.map(([t, , ic]) => `<div class="mcard t-${t} k-${ic}"><div class="ci">${icon(ic)}</div></div>`).join('');
   const kd = D.kerker, today = todayKey();
-  $('#kHubStats').innerHTML = `<span>Rekord <b>${fmt(kd.best)}</b> Gold</span><span>Siege <b>${fmt(D.stats.kWins)}</b></span><span>Schatz <b>${fmt(kd.bank)}</b></span>`;
+  $('#kHubStats').innerHTML = `<span>Siege <b>${fmt(D.stats.kWins)}</b></span><span>Beste Welt <b>${kd.bestWorld || '–'}</b></span>${kd.ascMax ? `<span>Aufstieg <b>${kd.ascMax}</b></span>` : ''}<span>Schatz <b>${fmt(kd.bank)}</b></span>`;
   $('#kDailyChip').hidden = kd.daily.key === today;
   const ld = D.licht, open = ld.missions.filter(m => m.prog < m.target).length;
   $('#lHubStats').innerHTML = `<span>Rekord <b>${fmt(ld.best)}</b></span><span>Rang <b>${ld.rank}</b></span><span>Funken <b>${fmt(ld.bank)}</b></span>` + (ld.missions.length ? `<span>Missionen offen <b>${open}</b></span>` : '');

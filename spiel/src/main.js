@@ -24,7 +24,10 @@ function init(){
     if (current === 'kerker'){
       if (kDirs[e.key]){ e.preventDefault(); move(kDirs[e.key]); }
       else if (e.key === ' ' || e.key === 'e'){ e.preventDefault(); abilityPress(); }
+      else if (/^[1-7]$/.test(e.key)) itemPress(+e.key - 1);
       else if (e.key === 'Escape') pauseSheet();
+    } else if (current === 'kmap'){
+      if (e.key === 'Escape') pauseSheet();
     } else if (current === 'licht'){
       if (e.key === 'ArrowLeft' || e.key === 'a'){ keys.l = true; e.preventDefault(); }
       if (e.key === 'ArrowRight' || e.key === 'd'){ keys.r = true; e.preventDefault(); }
@@ -38,9 +41,9 @@ function init(){
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;
     if (current === 'licht') lPause();
-    if (current === 'kerker') saveRun();
+    if (current === 'kerker' || current === 'kmap') saveRun();
   });
-  window.addEventListener('pagehide', () => { if (current === 'kerker') saveRun(); });
+  window.addEventListener('pagehide', () => { if (current === 'kerker' || current === 'kmap') saveRun(); });
 
   ensureMissions();
   go('hub');
@@ -53,9 +56,9 @@ function init(){
 
   if (DEBUG){
     window.__kl = {
-      D: () => D, k: () => k, st: () => st, move, startRun, go, abilityPress, useAbility, handlePending, closeSheet,
-      sheetOpen, lUpdate, lNew, lStart, lStop, lDraw, crash, setStyle, save, kBusy: () => kBusy, FLOORS, BOSSES, RELIC_IDS, takeRelic,
-      render, hud, spawn, newRun, merchantSheet
+      D: () => D, k: () => k, st: () => st, move, shoot, startRun, go, abilityPress, useAbility, itemPress, applyItem, closeSheet,
+      sheetOpen, lUpdate, lNew, lStart, lStop, lDraw, crash, setStyle, save, kBusy: () => kBusy, kFlow: () => kFlow, BOSSES, RELIC_IDS, takeRelic,
+      render, hud, newRun, enterNode, reachable, flow, isTarget, canShoot, twoAway, adjacent, setupRoom, nextWorld, current: () => current
     };
   }
 }
