@@ -13,3 +13,15 @@ python3 spiel/build.py --couchclub couchclub
 ```
 
 `index.html` enthält nur den Seiteninhalt. Das Grundgerüst mit doctype, head und body ergänzt die Veröffentlichung als Artifact.
+
+## Als App aufs Handy (GitHub Pages)
+
+Bei jeder Änderung auf `main` baut `.github/workflows/couchclub-pages.yml` die App mit
+
+```
+python3 couchclub/build.py --out _site
+```
+
+und veröffentlicht sie unter https://joel-arno.github.io/bruecke-app/. Der Service Worker (`sw.js`) holt online immer den neuesten Stand und speichert ihn für unterwegs, so läuft die App auch ohne Internet. Installieren: Seite im Handy-Browser öffnen, dann „Zum Home-Bildschirm“ (iPhone: Teilen-Menü in Safari) oder „App installieren“ (Android).
+
+Einmalig im Repository einstellen: Settings → Pages → Build and deployment → Source: „GitHub Actions“.
