@@ -22,6 +22,8 @@ python3 spiel/build.py
 
 Das erzeugt `spiel/index.html` mit eingebetteten Schriften. Mit `--artifact PFAD` entsteht zusätzlich eine Variante ohne Manifest und Service Worker.
 
+Mit `--couchclub couchclub` entsteht `couchclub/spiele.html`, die Fassung für den Couchclub: ohne Papier-Stil, mit einem Spielstand pro Couchclub-Spieler.
+
 ## Schriften
 
 Fraunces, IBM Plex Sans, IBM Plex Mono, Caveat und Patrick Hand stehen unter der SIL Open Font License 1.1 und sind als lateinische Teilmenge eingebettet (`src/fonts/`).

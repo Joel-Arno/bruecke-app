@@ -928,6 +928,7 @@ function lEnd(){
   checkRunMissions(true);
   const doneNow = L.missions.filter(m => m.done);
   save();
+  ccPost({ t: 'run', score: sc, sum: ccSummary() });
   Music.play('menu');
   setTimeout(() => {
     if (current !== 'licht') return;
@@ -1014,7 +1015,7 @@ function lmLoop(){
 function renderLMenu(){
   const L = D.licht;
   ensureMissions();
-  $('#lmSub').textContent = `Rang ${L.rank} · Punkte ×${rankMul().toFixed(2).replace('.', ',')}`;
+  $('#lmSub').textContent = (EMB && EMB.name ? EMB.name + ' · ' : '') + `Rang ${L.rank} · Punkte ×${rankMul().toFixed(2).replace('.', ',')}`;
   $('#lmStats').innerHTML = `<div class="stat"><span>Rekord</span><b>${fmt(L.best)}</b></div>
     <div class="stat"><span>Funken</span><b>${fmt(L.bank)}</b></div>
     <div class="stat"><span>Beste Zone</span><b>${L.bestZone || '–'}</b></div>`;

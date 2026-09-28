@@ -13,6 +13,7 @@
   const MODE_LABEL = { ai: 'Gegen KI', duo: 'Zu zweit', solo: 'Alleine' };
   const SOON = ['Codeknacker', 'Zahlenkette', 'Reaktionsduell', 'Undercover', 'Schiffe versenken', 'Air-Hockey', 'Begriffe erklären', 'Wörter raten', 'Quiz'];
   const KEY = 'couchclub.v1';
+  const saveKeyOf = (pid) => 'kerker-licht-v2@' + pid;   // Spielstand der Solo-Abenteuer (spiele.html)
 
   /* ---------- Speicher ---------- */
   function defaults() {
@@ -125,7 +126,7 @@
   }
   function tile(g) {
     const modes = g.modes.map((m) => ({ ai: 'KI', duo: '2 Spieler', solo: 'Solo' }[m])).join(' · ');
-    return `<button class="tile" data-game="${g.id}" style="--gc:var(--p-${g.color})">
+    return `<button class="tile ${g.frame ? 'wide' : ''}" data-game="${g.id}" style="--gc:var(--p-${g.color})">
       <span class="thumb">${g.thumb}</span>
       <span class="tile-body">
         <span class="tile-name">${g.name}</span>
@@ -135,6 +136,7 @@
     </button>`;
   }
   function renderGames() {
+    const duels = CC.games.filter((g) => !g.frame), solos = CC.games.filter((g) => g.frame);
     view.innerHTML = `
       <section class="intro">
         <h1 class="hello">${headline()}</h1>
@@ -146,8 +148,10 @@
           <button class="chip chip-add" data-action="add-player">+ Spieler</button>
         </div>
       </section>
-      <div class="shelf-head"><h2 class="section-label">Im Club · ${CC.games.length} Spiele</h2></div>
-      <section class="shelf">${CC.games.map(tile).join('')}</section>
+      <div class="shelf-head"><h2 class="section-label">Im Club · ${duels.length} Spiele</h2></div>
+      <section class="shelf">${duels.map(tile).join('')}</section>
+      ${solos.length ? `<div class="shelf-head"><h2 class="section-label">Solo-Abenteuer</h2></div>
+      <section class="shelf shelf-wide">${solos.map(tile).join('')}</section>` : ''}
       <section class="soon">
         <h2 class="section-label">Kommt als Nächstes</h2>
         <ul class="soon-list">${SOON.map((s) => `<li>${s}</li>`).join('')}</ul>
@@ -162,6 +166,10 @@
     const total = w + l + d;
     const rows = CC.games.map((g) => {
       const x = s[g.id];
+      if (g.frame) {
+        const cell = x?.sum?.runs ? `<td>${esc(g.statText(x.sum))}</td>` : '<td class="muted">noch nicht gespielt</td>';
+        return `<tr><th scope="row">${g.name}</th>${cell}</tr>`;
+      }
       const duels = x ? x.w + x.l + x.d : 0;
       const solo = x?.solo || 0;
       const parts = [];
@@ -219,13 +227,13 @@
         <div class="group">
           <h2 class="section-label">Daten</h2>
           <div class="rows">
-            <div class="row"><span class="row-text"><b>Statistiken zurücksetzen</b><small>Profile bleiben, alle Siege und Rekorde werden gelöscht.</small></span><button class="btn small ${confirmReset ? 'danger' : 'ghost'}" data-action="reset-stats">${confirmReset ? 'Wirklich?' : 'Zurücksetzen'}</button></div>
+            <div class="row"><span class="row-text"><b>Statistiken zurücksetzen</b><small>Profile bleiben, alle Siege und Rekorde werden gelöscht. Die Spielstände der Solo-Abenteuer bleiben erhalten.</small></span><button class="btn small ${confirmReset ? 'danger' : 'ghost'}" data-action="reset-stats">${confirmReset ? 'Wirklich?' : 'Zurücksetzen'}</button></div>
           </div>
         </div>
         <div class="group">
           <h2 class="section-label">Über Couchclub</h2>
           <div class="rows">
-            <div class="row"><span class="row-text"><b>Version 1.0</b><small>${CC.games.length} Spiele mit KI-Gegner in drei Stufen. ${SOON.length} weitere Spiele sind geplant.</small></span></div>
+            <div class="row"><span class="row-text"><b>Version 1.1</b><small>${CC.games.filter((g) => !g.frame).length} Spiele mit KI-Gegner in drei Stufen und ${CC.games.filter((g) => g.frame).length} Solo-Abenteuer. ${SOON.length} weitere Spiele sind geplant.</small></span></div>
           </div>
         </div>
       </div>`;
@@ -297,10 +305,16 @@
         <div class="lineup">${who}<button class="chip chip-add" data-action="add-player">+ Spieler</button></div>
         ${n > 1 && state.players.length < 2 ? '<span class="hint">Lege einen zweiten Spieler an, um zu zweit zu spielen.</span>' : ''}
       </div>
+      ${g.frame ? `<div class="field"><span class="label">Spielstand${picks[0] ? ` von ${esc(playerById(picks[0]).name)}` : ''}</span><p class="progress">${esc(frameProgress(g, picks[0]))}</p></div>` : ''}
       ${mode === 'ai' ? `<div class="field"><span class="label">KI-Stufe</span>${seg(LEVELS.map((l, i) => ({ v: i + 1, l })), 'level', level)}<span class="hint">${['Macht Fehler, gut zum Reinkommen.', 'Denkt ein paar Züge voraus.', 'Spielt richtig stark. Viel Glück.'][level - 1]}</span></div>` : ''}
       ${g.options.map((o) => `<div class="field"><span class="label">${o.label}</span>${seg(o.choices, `opt-${o.id}`, opts[o.id])}</div>`).join('')}
       <button class="btn primary wide" data-action="start" ${enough ? '' : 'disabled'}>Los geht’s</button>`;
     panel.setAttribute('aria-labelledby', 'sheet-title');
+  }
+
+  function frameProgress(g, pid) {
+    const x = pid && state.stats[pid]?.[g.id]?.sum;
+    return x && x.runs ? g.statText(x) : 'Noch nicht gespielt. Das Abenteuer beginnt von vorn.';
   }
 
   /* Spieler-Editor */
@@ -359,6 +373,7 @@
     state.players = state.players.filter((p) => p.id !== id);
     state.lineup = state.lineup.filter((x) => x !== id);
     delete state.stats[id];
+    try { localStorage.removeItem(saveKeyOf(id)); } catch (e) { /* nichts gespeichert */ }
     Object.values(state.last).forEach((l) => { if (l.picks) l.picks = l.picks.filter((x) => x !== id); });
     save();
     hideSheet();
@@ -380,6 +395,7 @@
     const { g, mode, level, picks, opts } = setup;
     state.last[g.id] = { mode, level, picks: picks.slice(), opts: { ...opts } };
     save();
+    if (g.frame) { hideSheet(); openFrame(g, playerById(picks[0])); return; }
     const players = picks.map((id) => ({ ...playerById(id) }));
     if (mode === 'ai') {
       const color = ['plum', 'teal', 'blue', 'coral'].find((c) => c !== players[0].color);
@@ -520,6 +536,59 @@
     render();
   }
 
+  /* ---------- Solo-Abenteuer im Vollbild ---------- */
+  const frameEl = $('#frame');
+  let frame = null;
+  const SUM_KEYS = ['runs', 'wins', 'world', 'asc', 'bank', 'depth', 'best', 'rank', 'zone'];
+  function openFrame(g, p) {
+    const s = state.settings;
+    const q = new URLSearchParams({ g: g.frame.g, p: p.id, n: p.name, snd: s.sound ? 1 : 0, vib: s.haptics ? 1 : 0, mot: motionOn() ? 1 : 0 });
+    frameEl.style.setProperty('--fbg', g.frame.bg);
+    frameEl.classList.remove('ready', 'failed');
+    frameEl.innerHTML = `
+      <div class="frame-load" style="--gc:var(--p-${g.color})">
+        <span class="frame-thumb">${g.thumb}</span>
+        <p class="frame-msg">${g.name} lädt …</p>
+        <button class="btn small ghost" data-action="close-frame" hidden>Zurück</button>
+      </div>
+      <iframe title="${g.name} für ${esc(p.name)}" src="${g.frame.src}#${q}"></iframe>`;
+    frameEl.hidden = false;
+    document.body.classList.add('is-playing');
+    frame = { g, pid: p.id, win: frameEl.querySelector('iframe'), ready: false };
+    frame.timer = setTimeout(() => {
+      if (!frame || frame.ready) return;
+      frameEl.classList.add('failed');
+      frameEl.querySelector('.frame-msg').textContent = `${g.name} startet gerade nicht. Versuch es gleich noch einmal.`;
+      frameEl.querySelector('[data-action="close-frame"]').hidden = false;
+    }, 15000);
+  }
+  function closeFrame() {
+    if (!frame) return;
+    clearTimeout(frame.timer);
+    frame = null;
+    frameEl.hidden = true;
+    frameEl.replaceChildren();
+    document.body.classList.remove('is-playing');
+    render();
+  }
+  window.addEventListener('message', (e) => {
+    if (!frame || e.source !== frame.win.contentWindow) return;
+    const d = e.data;
+    if (!d || d.cc !== 'kerker-licht') return;
+    if (d.sum && typeof d.sum === 'object') {
+      const sum = {};
+      SUM_KEYS.forEach((k) => { const v = Number(d.sum[k]); if (Number.isFinite(v) && v >= 0) sum[k] = Math.floor(v); });
+      stat(frame.pid, frame.g.id).sum = sum;
+      save();
+    }
+    if (d.t === 'ready' && !frame.ready) {
+      frame.ready = true;
+      frameEl.classList.add('ready');
+      frame.win.focus();
+    }
+    if (d.t === 'leave') closeFrame();
+  });
+
   /* ---------- Konfetti ---------- */
   function confetti(colorKey) {
     if (!motionOn()) return;
@@ -611,9 +680,17 @@
       case 'rematch': match.round++; newRound(); break;
       case 'restart': if (match) newRound(); break;
       case 'leave': leave(); break;
+      case 'close-frame': closeFrame(); break;
       case 'reset-stats':
         if (!confirmReset) { confirmReset = true; renderSettings(); }
-        else { state.stats = {}; save(); confirmReset = false; renderSettings(); }
+        else {
+          // Der Fortschritt der Solo-Abenteuer steckt in deren eigenem Spielstand und bleibt sichtbar
+          const keep = {};
+          Object.entries(state.stats).forEach(([pid, games]) => Object.entries(games).forEach(([gid, x]) => {
+            if (x.sum) (keep[pid] ||= {})[gid] = { w: 0, l: 0, d: 0, sum: x.sum };
+          }));
+          state.stats = keep; save(); confirmReset = false; renderSettings();
+        }
         break;
     }
   });

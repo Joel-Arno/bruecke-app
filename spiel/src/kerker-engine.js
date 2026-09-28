@@ -1555,5 +1555,6 @@ function settle(){
   }
   res.unlocked = checkHeroUnlocks();
   save();
+  ccPost({ t: 'run', won: !!k.won, sum: ccSummary() });
   return res;
 }

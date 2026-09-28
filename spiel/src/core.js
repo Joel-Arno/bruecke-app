@@ -7,11 +7,28 @@ const root = document.documentElement;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 const fmt = n => Math.floor(n).toLocaleString('de-DE');
-const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/* ---------- Im Couchclub eingebettet ----------
+   CC_MODE setzt der Build. Welches Spiel, welcher Spieler und die Einstellungen
+   kommen aus der Adresse, z. B. spiele.html#g=kerker&p=p1&n=Joel&snd=1&vib=1&mot=1 */
+const EMB = CC_MODE ? (() => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  return {
+    g: q.get('g') === 'licht' ? 'licht' : 'kerker',
+    p: (q.get('p') || '').replace(/[^\w-]/g, '').slice(0, 24),
+    name: (q.get('n') || '').slice(0, 14),
+    sound: q.get('snd') !== '0', vibe: q.get('vib') !== '0', motion: q.get('mot') !== '0'
+  };
+})() : null;
+function ccPost(msg){
+  if (!EMB || parent === window) return;
+  try { parent.postMessage(Object.assign({ cc: 'kerker-licht', g: EMB.g, p: EMB.p }, msg), '*'); } catch (e) {}
+}
+const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(EMB && !EMB.motion);
 const vr = Math.random;                                   // nur für Optik, nie für Spiellogik
 const vri = (a, b) => a + Math.floor(vr() * (b - a + 1));
 const plural = (n, one, many) => n === 1 ? one : many;
-const DEBUG = /(^|#)test$/.test(location.hash);
+const DEBUG = /(^|#|&)test$/.test(location.hash);
 const wait = ms => (DEBUG && window.__fast) ? 1 : ms;   // Testmodus: Banner und Pausen überspringen
 
 function mulberry(a){
@@ -35,7 +52,8 @@ function dayDiff(a, b){ return Math.round((new Date(b + 'T12:00:00') - new Date(
 /* =====================================================================
    SPIELSTAND (nur auf diesem Gerät)
    ===================================================================== */
-const SAVE_KEY = 'kerker-licht-v2', OLD_SAVE_KEY = 'kerker-licht-v1';
+// Im Couchclub hat jeder Spieler seinen eigenen Spielstand
+const SAVE_KEY = 'kerker-licht-v2' + (EMB && EMB.p ? '@' + EMB.p : ''), OLD_SAVE_KEY = 'kerker-licht-v1';
 function freshSave(){
   return {
     v: 2, style: 'warm', sound: true, music: true, vibe: true,
@@ -81,7 +99,7 @@ function loadSave(){
       }
       return m;
     }
-    const old = localStorage.getItem(OLD_SAVE_KEY);
+    const old = EMB ? null : localStorage.getItem(OLD_SAVE_KEY);
     if (old){
       // Fortschritt aus den ersten Entwürfen übernehmen
       const o = JSON.parse(old);
@@ -102,15 +120,17 @@ function loadSave(){
   return d;
 }
 let D = loadSave();
+if (EMB){ D.style = 'warm'; D.sound = EMB.sound; D.vibe = EMB.vibe; }
 function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(D)); } catch (e) {} }
 const isPaper = () => D.style === 'papier';
+const musicOn = () => D.music && (!EMB || EMB.sound);
 
 /* =====================================================================
    AUDIO: Soundeffekte und Musik, alles synthetisch erzeugt
    ===================================================================== */
 let AC = null, SFX = null, MUS = null, NOISE = null;
 function audio(){
-  if (!D.sound && !D.music) return null;
+  if (!D.sound && !musicOn()) return null;
   try {
     if (!AC){
       const C = window.AudioContext || window.webkitAudioContext;
@@ -259,7 +279,7 @@ const Music = (() => {
     }}
   };
   function tick(){
-    if (!AC || !track || !D.music || AC.state !== 'running') return;
+    if (!AC || !track || !musicOn() || AC.state !== 'running') return;
     const tr = TRACKS[track];
     if (nextT < AC.currentTime) nextT = AC.currentTime + .05;
     while (nextT < AC.currentTime + .15){
@@ -278,7 +298,7 @@ const Music = (() => {
     stop(){ track = null; },
     refresh(){
       if (!AC || !MUS) return;
-      MUS.gain.setTargetAtTime(D.music && track ? .17 : 0, AC.currentTime, .25);
+      MUS.gain.setTargetAtTime(musicOn() && track ? .17 : 0, AC.currentTime, .25);
       if (!timer) timer = setInterval(tick, 25);
     },
     set(opts){ if ('tempo' in opts) tempoMul = opts.tempo; if ('energy' in opts) energy = opts.energy; if ('fever' in opts) fever = opts.fever; }
@@ -529,6 +549,7 @@ function unlock(id){
   toast(a.name, 'Erfolg freigeschaltet', 'spark', 'ach');
 }
 function achSheet(){
+  if (EMB) return achSheetOne(EMB.g === 'licht' ? 'l' : 'k');
   const n = ACH.filter(a => D.ach[a.id]).length;
   const group = (g, title) => {
     const list = ACH.filter(a => a.g === g), got = list.filter(a => D.ach[a.id]).length;
@@ -542,14 +563,22 @@ function achSheet(){
     <button type="button" class="btn sec" data-act="close">Schließen</button>`, { close: closeSheet }, closeSheet);
 }
 
+function achSheetOne(g){
+  const list = ACH.filter(a => a.g === g), got = list.filter(a => D.ach[a.id]).length;
+  sheet(`<h2>Erfolge</h2><p>${got} von ${list.length} freigeschaltet.</p>
+    <ul class="list ach">${list.map(a => `<li class="${D.ach[a.id] ? '' : 'locked'}">
+      <span class="medal">${D.ach[a.id] ? icon('spark') : '?'}</span>
+      <div class="info"><b>${a.name}</b><span>${a.desc}</span></div></li>`).join('')}</ul>
+    <h2>Statistik</h2>${g === 'k' ? kStatsHTML() : lStatsHTML()}
+    <button type="button" class="btn sec" data-act="close">Schließen</button>`, { close: closeSheet }, closeSheet);
+}
+
 /* =====================================================================
    STARTSEITE, EINSTELLUNGEN, STATISTIK
    ===================================================================== */
-function statsSheet(){
+function kStatsHTML(){
   const s = D.stats;
-  sheet(`<h2>Statistik</h2>
-    <h3>Kerker-Wischer</h3>
-    <dl class="statlist">
+  return `<dl class="statlist">
       <dt>Läufe</dt><dd>${fmt(s.kRuns)}</dd>
       <dt>Siege im Abenteuer</dt><dd>${fmt(s.kWins)}</dd>
       <dt>Höchster Aufstieg</dt><dd>${fmt(D.kerker.ascMax || 0)}</dd>
@@ -562,9 +591,11 @@ function statsSheet(){
       <dt>Längste Serie</dt><dd>${fmt(s.kBestStreak)}</dd>
       <dt>Endlose Gruft (Räume)</dt><dd>${fmt(D.kerker.bestDepth || 0)}</dd>
       <dt>Gegenstände benutzt</dt><dd>${fmt(D.kerker.itemsUsed || 0)}</dd>
-    </dl>
-    <h3>Lichtläufer</h3>
-    <dl class="statlist">
+    </dl>`;
+}
+function lStatsHTML(){
+  const s = D.stats;
+  return `<dl class="statlist">
       <dt>Läufe</dt><dd>${fmt(s.lRuns)}</dd>
       <dt>Rekord</dt><dd>${fmt(D.licht.best)}</dd>
       <dt>Strecke gesamt</dt><dd>${fmt(s.lDist / 10)} m</dd>
@@ -573,21 +604,48 @@ function statsSheet(){
       <dt>Power-ups</dt><dd>${fmt(s.lPowers)}</dd>
       <dt>Bester Multiplikator</dt><dd>×${s.lBestMult}</dd>
       <dt>Rang</dt><dd>${D.licht.rank}</dd>
-    </dl>
+    </dl>`;
+}
+function statsSheet(){
+  sheet(`<h2>Statistik</h2>
+    <h3>Kerker-Wischer</h3>${kStatsHTML()}
+    <h3>Lichtläufer</h3>${lStatsHTML()}
     <button type="button" class="btn sec" data-act="close">Schließen</button>`, { close: closeSheet }, closeSheet);
 }
 function settingsSheet(confirmReset = false){
   if (confirmReset){
     sheet(`<h2>Alles löschen?</h2>
-      <p>Rekorde, Schatz, Upgrades, Helden, Skins und Erfolge werden gelöscht. Das lässt sich nicht rückgängig machen.</p>
+      <p>${EMB && EMB.name ? `Der Spielstand von <b>${EMB.name.replace(/[<&]/g, '')}</b> für Kerker-Wischer und Lichtläufer wird gelöscht: ` : ''}Rekorde, Schatz, Upgrades, Helden, Skins und Erfolge. Das lässt sich nicht rückgängig machen.</p>
       <div class="row"><button type="button" class="btn" data-act="wipe">Endgültig löschen</button>
       <button type="button" class="btn sec" data-act="back">Abbrechen</button></div>`,
-      { wipe: () => { const style = D.style; D = freshSave(); D.style = style; save(); closeSheet(); refreshHub(); toast('Spielstand gelöscht', 'Neuanfang', 'spark', 'ui'); },
+      { wipe: () => {
+          const style = D.style, snd = D.sound, vib = D.vibe;
+          D = freshSave(); D.style = style;
+          if (EMB){ D.sound = snd; D.vibe = vib; }
+          save(); closeSheet();
+          if (EMB){ ccPost({ t: 'wipe' }); go(EMB.g === 'licht' ? 'lmenu' : 'kmenu'); } else refreshHub();
+          toast('Spielstand gelöscht', 'Neuanfang', 'spark', 'ui');
+        },
         back: () => settingsSheet() }, () => settingsSheet());
     return;
   }
   const tg = (id, title, sub, on, dis = false) => `<button type="button" class="toggle" role="switch" data-act="${id}" aria-checked="${on}" ${dis ? 'disabled' : ''}>
       <span class="t-text"><b>${title}</b><span>${sub}</span></span><span class="switch"></span></button>`;
+  if (EMB){
+    sheet(`<h2>Einstellungen</h2>
+      <div class="toggles">
+        ${tg('music', 'Musik', EMB.sound ? 'Eigene Stücke für Kerker, Bosse und Lauf' : 'Der Ton ist im Couchclub ausgeschaltet', musicOn(), !EMB.sound)}
+      </div>
+      <p class="fine">Soundeffekte, Vibration und Animationen stellst du in den Couchclub-Einstellungen ein.</p>
+      <div class="row"><button type="button" class="btn sec" data-act="close">Fertig</button>
+      <button type="button" class="btn ghost" data-act="reset">Spielstand löschen</button></div>`,
+      {
+        music: () => { D.music = !D.music; save(); audio(); Music.refresh(); settingsSheet(); },
+        reset: () => settingsSheet(true),
+        close: closeSheet
+      }, closeSheet);
+    return;
+  }
   sheet(`<h2>Einstellungen</h2>
     <div class="toggles">
       ${tg('sound', 'Soundeffekte', 'Treffer, Münzen, Explosionen', D.sound)}
@@ -608,6 +666,7 @@ function settingsSheet(confirmReset = false){
 }
 
 function setStyle(s){
+  if (EMB) s = 'warm';
   D.style = s; save();
   root.dataset.style = s;
   $$('[data-style-btn]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.styleBtn === s)));

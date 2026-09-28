@@ -955,7 +955,7 @@ function codexSheet(back){
 }
 function renderKMenu(){
   const kd = D.kerker;
-  $('#kmSub').textContent = `Schatz ${fmt(kd.bank)} Gold`;
+  $('#kmSub').textContent = (EMB && EMB.name ? EMB.name + ' · ' : '') + `Schatz ${fmt(kd.bank)} Gold`;
   const run = kd.run, res = $('#kResume');
   if (run && !run.over && run.v === 2){
     const where = run.mode === 'end' ? `Raum ${run.rooms + 1}` : `Welt ${run.world}`;
